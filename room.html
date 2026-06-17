@@ -8,6 +8,9 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="css/theme.css" />
 
+  <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+  <script>eruda.init();</script>
+
   <style>
     /* Page-specific layout — no colours here */
     .page-main {
@@ -63,11 +66,11 @@
 
   <!-- Navbar -->
   <nav class="navbar">
-    <span class="navbar-logo">🐺</span>
     <div class="flex items-center gap-3 min-w-0">
+      <span class="navbar-logo">🐺</span>
       <span class="nav-username" id="navUsername"></span>
-      <button class="btn btn-danger" id="leaveBtn">Quitter</button>
     </div>
+    <button class="btn btn-danger" id="leaveBtn">Quitter</button>
   </nav>
 
   <main class="page-main">
