@@ -87,6 +87,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (role === 'host') {
     document.getElementById('hostControls').classList.remove('hidden');
     document.body.classList.add('has-host-controls');
+    await loadRoleSettings();
     initSettings();
     initHost();
   } else {
@@ -210,7 +211,7 @@ function connectToHost() {
 
 function scheduleReconnect() {
   clearTimeout(reconnectTimer);
-  reconnectTimer = setTimeout(connectToHost, 3000);
+  reconnectTimer = setTimeout(connectToHost, 200);
 }
 
 function onClientReceive(msg) {
@@ -395,9 +396,9 @@ function toggleRole(id) {
   const r = ROLES.find(r => r.id === id);
   if (!r || r.locked) return;
   r.enabled = !r.enabled;
-  // Cap count to new max when re-enabling
   if (r.enabled && r.countable) r.count = Math.min(r.count, getMaxCount(id));
   renderRoles();
+  saveRoleSettings();
 }
 
 function changeRoleCount(id, delta) {
@@ -406,6 +407,24 @@ function changeRoleCount(id, delta) {
   const max = getMaxCount(id);
   r.count = Math.min(max, Math.max(1, r.count + delta));
   renderRoles();
+  saveRoleSettings();
+}
+
+// Persist only the mutable parts (enabled + count) — the rest is in the ROLES definition.
+function saveRoleSettings() {
+  const state = ROLES.map(r => ({ id: r.id, enabled: r.enabled, count: r.count }));
+  dbSet('role_settings', state);
+}
+
+async function loadRoleSettings() {
+  const saved = await dbGet('role_settings');
+  if (!saved) return;
+  saved.forEach(({ id, enabled, count }) => {
+    const r = ROLES.find(r => r.id === id);
+    if (!r) return;
+    if (!r.locked) r.enabled = enabled;
+    if (r.countable && count != null) r.count = count;
+  });
 }
 
 function renderRoles() {

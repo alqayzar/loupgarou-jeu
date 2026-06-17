@@ -226,6 +226,36 @@ input, button, textarea { font-family: inherit; }
   z-index: 20;
 }
 
+/* Full-width room code banner */
+.room-code-banner {
+  background-color: rgba(0, 229, 255, 0.05);
+  border-bottom: 1.5px solid rgba(0, 229, 255, 0.14);
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.room-code-banner-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+/* Variant of copy-btn with text label */
+.copy-btn-text {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid rgba(0, 229, 255, 0.25);
+}
+
 .room-code-tag {
   font-family: 'Courier New', monospace;
   font-size: 1rem;
@@ -239,10 +269,10 @@ input, button, textarea { font-family: inherit; }
 }
 
 .nav-username {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  max-width: 110px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
