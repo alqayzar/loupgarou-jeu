@@ -120,11 +120,65 @@
           <div class="roles-list" id="rolesGrid"></div>
         </div>
       </div>
+
+      <!-- Section : Voix -->
+      <div class="settings-section">
+        <button class="section-toggle" id="voiceToggle">
+          <span>Voix</span>
+          <span class="section-toggle-icon rotated" id="voiceToggleIcon">▼</span>
+        </button>
+        <div class="section-content" id="voiceContent">
+
+          <div class="settings-field">
+            <div class="settings-field-header"><span>Voix</span></div>
+            <select class="settings-select" id="voiceSelect">
+              <option value="">Voix par défaut</option>
+            </select>
+          </div>
+
+          <div class="settings-field">
+            <div class="settings-field-header">
+              <span>Tonalité</span>
+              <span class="settings-field-value" id="pitchValue">1.0</span>
+            </div>
+            <input type="range" class="settings-range" id="pitchRange" min="0" max="2" step="0.1" value="1">
+          </div>
+
+          <div class="settings-field">
+            <div class="settings-field-header">
+              <span>Vitesse</span>
+              <span class="settings-field-value" id="rateValue">1.0</span>
+            </div>
+            <input type="range" class="settings-range" id="rateRange" min="0.5" max="2" step="0.1" value="1">
+          </div>
+
+          <div class="settings-field">
+            <div class="settings-field-header">
+              <span>Volume</span>
+              <span class="settings-field-value" id="volumeValue">1.0</span>
+            </div>
+            <input type="range" class="settings-range" id="volumeRange" min="0" max="1" step="0.1" value="1">
+          </div>
+
+          <div class="settings-field">
+            <input type="text" class="input" id="voiceTestInput"
+              placeholder="Texte à prononcer…"
+              value="La nuit tombe sur le village. Les loups se réveillent.">
+          </div>
+          <div class="settings-field">
+            <button class="btn btn-primary w-full" id="voiceTestBtn">▶ Tester</button>
+          </div>
+
+        </div>
+      </div>
+
     </div>
   </div>
 
   <script src="https://unpkg.com/peerjs@1/dist/peerjs.min.js"></script>
   <script src="js/db.js"></script>
+  <script src="js/players-grid.js"></script>
+  <script src="js/voice.js"></script>
   <script src="js/room.js"></script>
 
 </body>

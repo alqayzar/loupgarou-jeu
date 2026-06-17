@@ -240,17 +240,21 @@ function buildPlayer(id, username, image, isHost) {
   return { id, username, image: image || null, isHost, colorClass };
 }
 
-// Mutate the players array only — no DOM touch.
 function playerAdd(player)  { players.push(player); }
 function playerRemove(id)   { players = players.filter((p) => p.id !== id); }
 
-// Rebuild the entire grid from the current players array.
-// Both host and client go through this so the DOM is always a direct reflection of players[].
+function gridOptions() {
+  return { canKick: role === 'host', onKick: kickPlayer };
+}
+
+// Rebuild the entire grid — both host and client use this so the DOM always
+// mirrors the players array exactly.
 function renderAll(incoming) {
-  if (incoming) players = incoming; // clients pass the fresh list from the host
-  const grid = document.getElementById('playersGrid');
-  grid.innerHTML = '';
-  players.forEach((p) => grid.appendChild(renderPlayerCard(p)));
+  if (incoming) players = incoming;
+  renderPlayersGrid(document.getElementById('playersGrid'), players, {
+    canKick: role === 'host',
+    onKick: kickPlayer
+  });
   updatePlayerCount();
 }
 
@@ -261,48 +265,6 @@ function kickPlayer(peerId) {
   playerRemove(peerId);
   renderAll();
   syncAll();
-}
-
-function renderPlayerCard(player) {
-  const card = document.createElement('div');
-  card.id = `player-${player.id}`;
-  card.className = `player-card ${player.colorClass}`;
-
-  if (player.isHost) {
-    const badge = document.createElement('div');
-    badge.className = 'host-badge';
-    badge.textContent = 'Host';
-    card.appendChild(badge);
-  }
-
-  // Kick button — only rendered for the host, not on their own card
-  if (role === 'host' && !player.isHost) {
-    const kickBtn = document.createElement('button');
-    kickBtn.className = 'kick-btn';
-    kickBtn.textContent = '✕';
-    kickBtn.title = `Exclure ${player.username}`;
-    kickBtn.addEventListener('click', (e) => { e.stopPropagation(); kickPlayer(player.id); });
-    card.appendChild(kickBtn);
-  }
-
-  const avatar = document.createElement('div');
-  avatar.className = 'player-avatar';
-  if (player.image) {
-    const img = document.createElement('img');
-    img.src = player.image;
-    img.alt = player.username;
-    avatar.appendChild(img);
-  } else {
-    avatar.textContent = '👤';
-  }
-
-  const name = document.createElement('div');
-  name.className = 'player-name';
-  name.textContent = player.username;
-
-  card.appendChild(avatar);
-  card.appendChild(name);
-  return card;
 }
 
 // ─── UI helpers ──────────────────────────────────────────────────────────────
@@ -358,15 +320,74 @@ function initSettings() {
     if (e.target === e.currentTarget) closeSettings();
   });
 
-  // Collapsible section toggle
-  document.getElementById('rolesToggle').addEventListener('click', () => {
-    const content = document.getElementById('rolesContent');
-    const icon    = document.getElementById('rolesToggleIcon');
-    content.classList.toggle('collapsed');
-    icon.classList.toggle('rotated');
-  });
+  bindCollapsible('rolesToggle',  'rolesContent',  'rolesToggleIcon');
+  bindCollapsible('voiceToggle',  'voiceContent',  'voiceToggleIcon');
 
   renderRoles();
+  initVoiceSection();
+}
+
+function bindCollapsible(toggleId, contentId, iconId) {
+  document.getElementById(toggleId).addEventListener('click', () => {
+    document.getElementById(contentId).classList.toggle('collapsed');
+    document.getElementById(iconId).classList.toggle('rotated');
+  });
+}
+
+function initVoiceSection() {
+  const select      = document.getElementById('voiceSelect');
+  const pitchRange  = document.getElementById('pitchRange');
+  const rateRange   = document.getElementById('rateRange');
+  const volumeRange = document.getElementById('volumeRange');
+  const pitchValue  = document.getElementById('pitchValue');
+  const rateValue   = document.getElementById('rateValue');
+  const volumeValue = document.getElementById('volumeValue');
+  const testInput   = document.getElementById('voiceTestInput');
+  const testBtn     = document.getElementById('voiceTestBtn');
+
+  // Populate voice list (may load asynchronously in Chromium)
+  onVoicesReady((voices) => {
+    const fr    = voices.filter(v => v.lang.startsWith('fr'));
+    const other = voices.filter(v => !v.lang.startsWith('fr'));
+
+    select.innerHTML = '<option value="">Voix par défaut</option>';
+
+    [{ label: 'Français', list: fr }, { label: 'Autres', list: other }].forEach(({ label, list }) => {
+      if (!list.length) return;
+      const group = document.createElement('optgroup');
+      group.label = label;
+      list.forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v.voiceURI;
+        opt.textContent = `${v.name} (${v.lang})`;
+        group.appendChild(opt);
+      });
+      select.appendChild(group);
+    });
+
+    const saved = getVoiceConfig().voiceURI;
+    if (saved) select.value = saved;
+  });
+
+  select.addEventListener('change', () => setVoiceConfig({ voiceURI: select.value || null }));
+
+  function bindRange(el, labelEl, key) {
+    el.addEventListener('input', () => {
+      const v = parseFloat(el.value);
+      labelEl.textContent = v.toFixed(1);
+      setVoiceConfig({ [key]: v });
+    });
+  }
+
+  bindRange(pitchRange,  pitchValue,  'pitch');
+  bindRange(rateRange,   rateValue,   'rate');
+  bindRange(volumeRange, volumeValue, 'volume');
+
+  testBtn.addEventListener('click', () => {
+    const text = testInput.value.trim();
+    if (text) say(text);
+  });
+  testInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') testBtn.click(); });
 }
 
 function openSettings()  { document.getElementById('settingsOverlay').classList.remove('hidden'); }
