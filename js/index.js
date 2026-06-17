@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   scanQrBtn.addEventListener('click', async () => {
     try {
       await startQrScanner(scannerVideo, scannerCanvas, (data) => {
-        roomCodeInput.value = data;
+        roomCodeInput.value = extractRoomCode(data);
         scannerOverlay.classList.add('hidden');
       });
       scannerOverlay.classList.remove('hidden');

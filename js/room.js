@@ -149,7 +149,7 @@ function onHostReceive(conn, msg) {
 
   // Replace any stale entry for this peer (handles reconnect after reload)
   playerRemove(conn.peer);
-  playerAdd(buildPlayer(conn.peer, msg.username, msg.image, false));
+  playerAdd(buildPlayer(conn.peer, resolveUsername(msg.username), msg.image, false));
 
   renderAll();
   syncAll();
@@ -259,6 +259,14 @@ function buildPlayer(id, username, image, isHost) {
 
 function playerAdd(player)  { players.push(player); }
 function playerRemove(id)   { players = players.filter((p) => p.id !== id); }
+
+function resolveUsername(username) {
+  const names = players.map(p => p.username);
+  if (!names.includes(username)) return username;
+  let n = 2;
+  while (names.includes(`${username} (${n})`)) n++;
+  return `${username} (${n})`;
+}
 
 function gridOptions() {
   return { canKick: role === 'host', onKick: kickPlayer };
