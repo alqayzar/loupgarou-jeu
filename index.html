@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Loup Garou</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/theme.css" />
+
+  <style>
+    /* Page-specific layout — no colours here */
+    .profile-card {
+      background-color: var(--bg-surface);
+      border: 1.5px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 24px 20px;
+      width: 100%;
+      max-width: 340px;
+    }
+
+    .app-title {
+      font-size: 2.6rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+      text-shadow: 0 0 40px rgba(124,77,255,0.5);
+    }
+
+    .app-subtitle {
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="color-strip"></div>
+
+  <main class="min-h-screen flex flex-col items-center justify-center p-4 gap-8">
+
+    <!-- Logo -->
+    <div class="text-center">
+      <div class="app-title">🐺 Loup Garou</div>
+      <div class="app-subtitle mt-1">Jeu de rôle multijoueur</div>
+    </div>
+
+    <!-- Profile card -->
+    <div class="profile-card flex flex-col items-center gap-4">
+
+      <!-- Avatar -->
+      <button class="avatar-uploader" id="avatarBtn" type="button" aria-label="Changer l'avatar">
+        <span class="avatar-placeholder" id="avatarPlaceholder">👤</span>
+        <img id="avatarImg" class="hidden" alt="Avatar" />
+        <div class="avatar-overlay">📷</div>
+      </button>
+      <input type="file" id="avatarFileInput" accept="image/*" class="hidden" />
+
+      <!-- Username -->
+      <input
+        type="text"
+        id="usernameInput"
+        class="input"
+        placeholder="Ton pseudo…"
+        maxlength="20"
+        autocomplete="off"
+        spellcheck="false"
+      />
+    </div>
+
+    <!-- Action buttons -->
+    <div class="flex gap-4 w-full" style="max-width: 340px;">
+      <button id="createBtn" class="btn btn-cyan flex-1">Créer</button>
+      <button id="joinBtn"   class="btn btn-lime  flex-1">Rejoindre</button>
+    </div>
+
+  </main>
+
+  <!-- Join modal -->
+  <div id="joinModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="joinTitle">
+    <div class="modal-box flex flex-col gap-4">
+      <div class="modal-title" id="joinTitle">Rejoindre une partie</div>
+      <input
+        type="text"
+        id="roomCodeInput"
+        class="input"
+        placeholder="Code de la room…"
+        maxlength="6"
+        autocomplete="off"
+        autocapitalize="characters"
+        spellcheck="false"
+        style="letter-spacing: 0.15em; text-transform: uppercase; font-family: 'Courier New', monospace;"
+      />
+      <div class="flex gap-3">
+        <button id="cancelJoinBtn"  class="btn btn-ghost   flex-1">Annuler</button>
+        <button id="confirmJoinBtn" class="btn btn-primary flex-1">Rejoindre</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/db.js"></script>
+  <script src="js/index.js"></script>
+</body>
+</html>

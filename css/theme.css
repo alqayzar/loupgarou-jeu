@@ -1,0 +1,684 @@
+/* ==========================================================
+   Design tokens — every colour lives here, nowhere else.
+   To retheme: edit this file only.
+   ========================================================== */
+:root {
+  /* Backgrounds */
+  --bg-page:    #0d0a1a;
+  --bg-surface: #130e25;
+  --bg-card:    #1a1133;
+  --bg-navbar:  #090618;
+  --bg-input:   #1c1535;
+  --bg-modal:   #11102b;
+
+  /* Candy-pop palette */
+  --candy-cyan:   #00e5ff;
+  --candy-lime:   #c6ff00;
+  --candy-orange: #ff6d00;
+  --candy-yellow: #ffe57f;
+  --candy-blue:   #448aff;
+  --candy-violet: #d500f9;
+  --candy-teal:   #1de9b6;
+  --candy-pink:   #ff4081;
+
+  /* Primary UI */
+  --color-primary:       #7c4dff;
+  --color-primary-hover: #651fff;
+  --color-danger:        #ff4081;
+  --color-success:       #1de9b6;
+  --color-warning:       #ffe57f;
+
+  /* Text */
+  --text-primary:   #f0e6ff;
+  --text-secondary: #a08ab8;
+  --text-muted:     #4a3d6b;
+  --text-dark:      #0a0616;
+
+  /* Borders */
+  --border-subtle:  #1c1438;
+  --border-default: #2d1f55;
+
+  /* Player-card accent — cycled per player index 0-7 */
+  --player-color-0: var(--candy-cyan);
+  --player-color-1: var(--candy-lime);
+  --player-color-2: var(--candy-orange);
+  --player-color-3: var(--candy-yellow);
+  --player-color-4: var(--candy-blue);
+  --player-color-5: var(--candy-violet);
+  --player-color-6: var(--candy-teal);
+  --player-color-7: var(--candy-pink);
+
+  /* Shadows */
+  --shadow-sm:            0 2px 8px rgba(0,0,0,0.4);
+  --shadow-md:            0 4px 24px rgba(0,0,0,0.55);
+  --shadow-glow-purple:   0 0 28px rgba(124,77,255,0.35);
+  --shadow-glow-cyan:     0 0 20px rgba(0,229,255,0.3);
+
+  /* Shape */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+
+  /* Kick button — visible on card hover (always visible on touch screens) */
+.kick-btn {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: var(--color-danger);
+  border: none;
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s, transform 0.15s;
+  z-index: 2;
+  -webkit-tap-highlight-color: transparent;
+}
+.player-card:hover .kick-btn { opacity: 1; }
+.kick-btn:hover { transform: scale(1.2); }
+/* Always visible on touch devices */
+@media (hover: none) { .kick-btn { opacity: 1; } }
+
+/* Fixed player-card dimensions — all cards identical */
+  --card-w:      110px;
+  --card-h:      152px;
+  --card-avatar:  72px;
+}
+
+/* ==========================================================
+   Reset & base
+   ========================================================== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background-color: var(--bg-page);
+  background-image:
+    radial-gradient(ellipse 55% 40% at 15% 25%, rgba(124,77,255,0.10) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 55% at 85% 75%, rgba(0,229,255,0.06) 0%, transparent 70%);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+input, button, textarea { font-family: inherit; }
+
+/* ==========================================================
+   Colour bar — decorative top strip
+   ========================================================== */
+.color-strip {
+  height: 3px;
+  background: linear-gradient(90deg,
+    var(--candy-cyan)   0%,
+    var(--candy-blue)  20%,
+    var(--color-primary) 40%,
+    var(--candy-violet) 60%,
+    var(--candy-pink)  80%,
+    var(--candy-orange) 100%
+  );
+}
+
+/* ==========================================================
+   Buttons
+   ========================================================== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 20px;
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border: none;
+  transition: transform 0.1s, box-shadow 0.2s, opacity 0.2s;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:active { transform: scale(0.95); }
+.btn:disabled { opacity: 0.45; pointer-events: none; }
+
+.btn-cyan {
+  background-color: var(--candy-cyan);
+  color: var(--text-dark);
+  box-shadow: 0 4px 18px rgba(0,229,255,0.35);
+}
+.btn-cyan:hover { box-shadow: 0 4px 26px rgba(0,229,255,0.55); }
+
+.btn-lime {
+  background-color: var(--candy-lime);
+  color: var(--text-dark);
+  box-shadow: 0 4px 18px rgba(198,255,0,0.35);
+}
+.btn-lime:hover { box-shadow: 0 4px 26px rgba(198,255,0,0.55); }
+
+.btn-primary {
+  background-color: var(--color-primary);
+  color: var(--text-primary);
+  box-shadow: 0 4px 18px rgba(124,77,255,0.4);
+}
+.btn-primary:hover {
+  background-color: var(--color-primary-hover);
+  box-shadow: 0 4px 26px rgba(124,77,255,0.6);
+}
+
+.btn-danger {
+  background-color: transparent;
+  color: var(--color-danger);
+  border: 2px solid var(--color-danger);
+  padding: 8px 14px;
+  font-size: 0.78rem;
+}
+.btn-danger:hover { background-color: var(--color-danger); color: white; }
+
+.btn-ghost {
+  background-color: transparent;
+  color: var(--text-secondary);
+  border: 2px solid var(--border-default);
+}
+.btn-ghost:hover { border-color: var(--color-primary); color: var(--text-primary); }
+
+/* ==========================================================
+   Inputs
+   ========================================================== */
+.input {
+  width: 100%;
+  background-color: var(--bg-input);
+  border: 2px solid var(--border-default);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  padding: 12px 16px;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  caret-color: var(--color-primary);
+}
+.input::placeholder { color: var(--text-muted); }
+.input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(124,77,255,0.18);
+}
+
+/* ==========================================================
+   Navbar
+   ========================================================== */
+.navbar {
+  background-color: var(--bg-navbar);
+  border-bottom: 1.5px solid var(--border-subtle);
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.room-code-tag {
+  font-family: 'Courier New', monospace;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--candy-cyan);
+  background-color: rgba(0,229,255,0.07);
+  border: 1.5px solid var(--candy-cyan);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+}
+
+.nav-username {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copy-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 1rem;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s, background-color 0.15s;
+  line-height: 1;
+}
+.copy-btn:hover { color: var(--candy-cyan); background-color: rgba(0,229,255,0.08); }
+
+/* ==========================================================
+   Avatar uploader (index page)
+   ========================================================== */
+.avatar-uploader {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background-color: var(--bg-card);
+  border: 2.5px dashed var(--border-default);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  flex-shrink: 0;
+  transition: border-color 0.2s, border-style 0.2s;
+}
+.avatar-uploader:hover { border-color: var(--color-primary); border-style: solid; }
+
+.avatar-uploader img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-placeholder { font-size: 2.2rem; color: var(--text-muted); }
+
+.avatar-overlay {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0,0,0,0.52);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+}
+.avatar-uploader:hover .avatar-overlay { display: flex; }
+
+/* ==========================================================
+   Player cards — strict fixed size for homogeneity
+   ========================================================== */
+.players-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: flex-start;
+  /* exactly 3 cards wide — the block itself is centred via margin */
+  max-width: calc(3 * var(--card-w) + 2 * 12px);
+  margin: 0 auto;
+}
+
+.player-card {
+  --player-accent: var(--border-default); /* overridden by .player-color-X */
+  width: var(--card-w);
+  height: var(--card-h);
+  background-color: var(--bg-card);
+  border-radius: var(--radius-md);
+  border: 2.5px solid var(--player-accent);
+  box-shadow: 0 0 14px -4px var(--player-accent);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 8px 10px;
+  position: relative;
+  flex-shrink: 0;
+  transition: transform 0.2s;
+  overflow: hidden;
+}
+.player-card:hover { transform: translateY(-4px); }
+
+/* One class per candy slot — JS adds the right class */
+.player-color-0 { --player-accent: var(--candy-cyan); }
+.player-color-1 { --player-accent: var(--candy-lime); }
+.player-color-2 { --player-accent: var(--candy-orange); }
+.player-color-3 { --player-accent: var(--candy-yellow); }
+.player-color-4 { --player-accent: var(--candy-blue); }
+.player-color-5 { --player-accent: var(--candy-violet); }
+.player-color-6 { --player-accent: var(--candy-teal); }
+.player-color-7 { --player-accent: var(--candy-pink); }
+
+.player-avatar {
+  width: var(--card-avatar);
+  height: var(--card-avatar);
+  border-radius: 50%;
+  background-color: var(--bg-surface);
+  border: 2px solid var(--player-accent); /* inherits accent from parent */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.9rem;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.player-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.player-name {
+  margin-top: auto;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: center;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.host-badge {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background-color: var(--candy-yellow);
+  color: var(--text-dark);
+  font-size: 0.55rem;
+  font-weight: 800;
+  padding: 2px 5px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ==========================================================
+   Status bar (room page)
+   ========================================================== */
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--border-default);
+  flex-shrink: 0;
+}
+.status-dot.connecting   { background-color: var(--candy-orange); animation: pulse 1s infinite; }
+.status-dot.waiting      { background-color: var(--color-success); }
+.status-dot.reconnecting { background-color: var(--candy-yellow); animation: pulse 1s infinite; }
+.status-dot.error        { background-color: var(--color-danger); }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.25; }
+}
+
+.player-count {
+  margin-left: auto;
+  font-weight: 700;
+  color: var(--candy-cyan);
+  font-size: 0.8rem;
+}
+
+/* ==========================================================
+   Modal
+   ========================================================== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(9,6,24,0.88);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 50;
+}
+.modal-overlay.hidden { display: none; }
+
+.modal-box {
+  background-color: var(--bg-modal);
+  border: 2px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  width: 100%;
+  max-width: 360px;
+  box-shadow: var(--shadow-glow-purple);
+}
+
+.modal-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+
+/* ==========================================================
+   Toast
+   ========================================================== */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--bg-card);
+  border: 1.5px solid var(--candy-cyan);
+  color: var(--text-primary);
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  z-index: 100;
+  white-space: nowrap;
+  box-shadow: var(--shadow-glow-cyan);
+  animation: toast-in 0.25s ease;
+  pointer-events: none;
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ==========================================================
+   Settings bottom sheet
+   ========================================================== */
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(9,6,24,0.72);
+  backdrop-filter: blur(3px);
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+}
+.settings-overlay.hidden { display: none; }
+
+.settings-sheet {
+  background-color: var(--bg-surface);
+  border-top: 2px solid var(--border-default);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  padding-bottom: 96px; /* clear the host controls bar */
+  animation: slide-up 0.26s ease;
+}
+@keyframes slide-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+.settings-handle {
+  width: 36px;
+  height: 4px;
+  background-color: var(--border-default);
+  border-radius: 2px;
+  margin: 12px auto 0;
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.settings-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s;
+}
+.settings-close-btn:hover { color: var(--text-primary); }
+
+/* Collapsible section */
+.settings-section { border-top: 1.5px solid var(--border-subtle); }
+
+.section-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.section-toggle:hover { background-color: var(--bg-card); }
+
+.section-toggle-icon {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  transition: transform 0.22s;
+}
+.section-toggle-icon.rotated { transform: rotate(180deg); }
+
+.section-content { padding: 4px 16px 16px; }
+.section-content.collapsed { display: none; }
+
+/* ==========================================================
+   Role list (settings panel)
+   ========================================================== */
+.roles-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.role-item {
+  --role-bg: var(--border-default);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  border-left: 4px solid var(--role-bg);
+  background-color: var(--bg-card);
+  cursor: pointer;
+  transition: opacity 0.2s, filter 0.2s, background-color 0.15s;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.role-item:not(.locked):hover { background-color: var(--bg-modal); }
+.role-item.locked   { cursor: default; }
+.role-item.disabled { opacity: 0.32; filter: grayscale(0.45); }
+
+.role-item-emoji {
+  font-size: 1.8rem;
+  line-height: 1;
+  flex-shrink: 0;
+  width: 34px;
+  text-align: center;
+}
+
+.role-item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.role-item-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 3px;
+}
+
+.role-item-name {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.role-item-lock {
+  font-size: 0.6rem;
+  opacity: 0.55;
+  flex-shrink: 0;
+}
+
+.role-item-desc {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.role-item-right {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Counter controls */
+.role-counter-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background-color: var(--bg-input);
+  border: 1.5px solid var(--border-default);
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, opacity 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.role-counter-btn:hover:not(:disabled) { border-color: var(--color-primary); }
+.role-counter-btn:disabled { opacity: 0.25; cursor: default; }
+
+.role-count-display {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  min-width: 20px;
+  text-align: center;
+}
+
+.role-auto-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* One class per role — sets the left accent bar colour */
+.role-teal   { --role-bg: var(--candy-teal); }
+.role-orange { --role-bg: var(--candy-orange); }
+.role-violet { --role-bg: var(--candy-violet); }
+.role-blue   { --role-bg: var(--candy-blue); }
+
+/* ==========================================================
+   Scrollbar
+   ========================================================== */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--bg-page); }
+::-webkit-scrollbar-thumb { background: var(--color-primary); border-radius: 2px; }
