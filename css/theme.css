@@ -299,8 +299,8 @@ input, button, textarea { font-family: inherit; }
    ========================================================== */
 .players-grid {
   display: grid;
-  margin-left: 20px;
-  margin-right: 20px;
+  margin-left: 10px;
+  margin-right: 10px;
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
 }
@@ -335,8 +335,10 @@ input, button, textarea { font-family: inherit; }
 .player-color-7 { --player-accent: var(--candy-pink); }
 
 .player-avatar {
-  width: var(--card-avatar);
-  height: var(--card-avatar);
+  /* width: var(--card-avatar); */
+  /* height: var(--card-avatar); */
+  width: 75%;
+  aspect-ratio: 1/1;
   border-radius: 50%;
   background-color: var(--bg-surface);
   border: 2px solid var(--player-accent); /* inherits accent from parent */
