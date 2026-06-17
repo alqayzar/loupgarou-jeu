@@ -19,6 +19,17 @@
       margin: 0 auto;
     }
 
+    .share-hint {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-align: center;
+    }
+    .share-hint strong {
+      font-family: 'Courier New', monospace;
+      letter-spacing: 0.15em;
+      color: var(--candy-cyan);
+    }
+
     .section-label {
       font-size: 0.7rem;
       font-weight: 700;
@@ -52,23 +63,16 @@
 
   <!-- Navbar -->
   <nav class="navbar">
-    <div class="flex items-center gap-2 min-w-0">
-      <span style="font-size: 1.1rem;">🐺</span>
+    <span class="navbar-logo">🐺</span>
+    <div class="flex items-center gap-3 min-w-0">
       <span class="nav-username" id="navUsername"></span>
+      <button class="btn btn-danger" id="leaveBtn">Quitter</button>
     </div>
-    <button class="btn btn-danger" id="leaveBtn">Quitter</button>
   </nav>
 
-  <!-- Room code banner — full width, sits between navbar and content -->
-  <div class="room-code-banner">
-    <div class="flex items-center gap-2">
-      <span class="room-code-banner-label">Room</span>
-      <span class="room-code-tag" id="roomCodeDisplay">------</span>
-    </div>
-    <button class="copy-btn copy-btn-text" id="copyBtn" title="Copier le code">📋 Copier</button>
-  </div>
-
   <main class="page-main">
+
+    <span class="room-code-tag room-code-clickable" id="roomCodeDisplay" title="Copier le code">------</span>
 
     <!-- Status bar -->
     <div class="status-bar">
@@ -116,5 +120,6 @@
   <script src="https://unpkg.com/peerjs@1/dist/peerjs.min.js"></script>
   <script src="js/db.js"></script>
   <script src="js/room.js"></script>
+
 </body>
 </html>

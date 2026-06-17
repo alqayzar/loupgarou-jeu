@@ -80,9 +80,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   role = session.role;
 
   document.getElementById('roomCodeDisplay').textContent = roomId;
+  document.getElementById('roomCodeDisplay').addEventListener('click', copyRoomCode);
   document.getElementById('navUsername').textContent = profile.username;
   document.getElementById('leaveBtn').addEventListener('click', leaveRoom);
-  document.getElementById('copyBtn').addEventListener('click', copyRoomCode);
 
   if (role === 'host') {
     document.getElementById('hostControls').classList.remove('hidden');
@@ -211,7 +211,7 @@ function connectToHost() {
 
 function scheduleReconnect() {
   clearTimeout(reconnectTimer);
-  reconnectTimer = setTimeout(connectToHost, 200);
+  reconnectTimer = setTimeout(connectToHost, 1000);
 }
 
 function onClientReceive(msg) {

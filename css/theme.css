@@ -13,6 +13,7 @@
 
   /* Candy-pop palette */
   --candy-cyan:   #00e5ff;
+  --candy-cyan-2: #00e5ff57;
   --candy-lime:   #c6ff00;
   --candy-orange: #ff6d00;
   --candy-yellow: #ffe57f;
@@ -226,35 +227,7 @@ input, button, textarea { font-family: inherit; }
   z-index: 20;
 }
 
-/* Full-width room code banner */
-.room-code-banner {
-  background-color: rgba(0, 229, 255, 0.05);
-  border-bottom: 1.5px solid rgba(0, 229, 255, 0.14);
-  padding: 10px 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.room-code-banner-label {
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text-muted);
-}
-
-/* Variant of copy-btn with text label */
-.copy-btn-text {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 5px 10px;
-  border-radius: var(--radius-sm);
-  border: 1.5px solid rgba(0, 229, 255, 0.25);
-}
+.navbar-logo { font-size: 1.2rem; }
 
 .room-code-tag {
   font-family: 'Courier New', monospace;
@@ -262,34 +235,30 @@ input, button, textarea { font-family: inherit; }
   font-weight: 700;
   letter-spacing: 0.2em;
   color: var(--candy-cyan);
-  background-color: rgba(0,229,255,0.07);
-  border: 1.5px solid var(--candy-cyan);
+  background-color: rgba(0,229,255,0.03);
+  border: 1.5px solid var(--candy-cyan-2);
   border-radius: var(--radius-sm);
   padding: 4px 10px;
 }
 
+.room-code-clickable {
+  cursor: pointer;
+  transition: background-color 0.15s;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.room-code-clickable:hover { background-color: rgba(0,229,255,0.18); }
+
 .nav-username {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  max-width: 160px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  max-width: 110px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.copy-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-muted);
-  font-size: 1rem;
-  padding: 4px 6px;
-  border-radius: var(--radius-sm);
-  transition: color 0.15s, background-color 0.15s;
-  line-height: 1;
-}
-.copy-btn:hover { color: var(--candy-cyan); background-color: rgba(0,229,255,0.08); }
 
 /* ==========================================================
    Avatar uploader (index page)
