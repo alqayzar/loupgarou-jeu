@@ -298,29 +298,27 @@ input, button, textarea { font-family: inherit; }
    Player cards — strict fixed size for homogeneity
    ========================================================== */
 .players-grid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  margin-left: 20px;
+  margin-right: 20px;
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
-  justify-content: flex-start;
-  /* exactly 3 cards wide — the block itself is centred via margin */
-  max-width: calc(3 * var(--card-w) + 2 * 12px);
-  margin: 0 auto;
 }
 
 .player-card {
   --player-accent: var(--border-default); /* overridden by .player-color-X */
-  width: var(--card-w);
-  height: var(--card-h);
+  width: 100%;
+  /* height: var(--card-h); */
   background-color: var(--bg-card);
   border-radius: var(--radius-md);
   border: 2.5px solid var(--player-accent);
   box-shadow: 0 0 14px -4px var(--player-accent);
   display: flex;
   flex-direction: column;
+  gap: 20px;
   align-items: center;
   padding: 10px 8px 10px;
   position: relative;
-  flex-shrink: 0;
   transition: transform 0.2s;
   overflow: hidden;
 }
