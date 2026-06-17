@@ -34,6 +34,68 @@
       letter-spacing: 0.15em;
       color: var(--text-muted);
     }
+
+    .btn-scan-qr {
+      flex-shrink: 0;
+      width: 48px;
+      height: 48px;
+      border-radius: var(--radius-md);
+      background-color: var(--bg-card);
+      border: 2px solid var(--border-default);
+      color: var(--text-secondary);
+      font-size: 1.3rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color 0.2s, color 0.2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-scan-qr:hover { border-color: var(--color-primary); color: var(--text-primary); }
+
+    .scanner-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .scanner-overlay.hidden { display: none; }
+
+    .scanner-video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .scanner-ui {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 28px;
+    }
+
+    .scanner-frame {
+      width: 230px;
+      height: 230px;
+      border: 3px solid var(--candy-cyan);
+      border-radius: var(--radius-md);
+      box-shadow: 0 0 0 9999px rgba(0,0,0,0.65);
+    }
+
+    .scanner-hint {
+      color: var(--text-primary);
+      font-size: 0.875rem;
+      text-align: center;
+      padding: 0 24px;
+      text-shadow: 0 1px 6px rgba(0,0,0,0.9);
+    }
   </style>
 </head>
 <body>
@@ -83,17 +145,19 @@
   <div id="joinModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="joinTitle">
     <div class="modal-box flex flex-col gap-4">
       <div class="modal-title" id="joinTitle">Rejoindre une partie</div>
-      <input
-        type="text"
-        id="roomCodeInput"
-        class="input"
-        placeholder="Code de la room…"
-        maxlength="6"
-        autocomplete="off"
-        autocapitalize="characters"
-        spellcheck="false"
-        style="letter-spacing: 0.15em; text-transform: uppercase; font-family: 'Courier New', monospace;"
-      />
+      <div class="flex gap-2 items-center">
+        <input
+          type="text"
+          id="roomCodeInput"
+          class="input flex-1 min-w-0"
+          placeholder="Code ou lien join.html#…"
+          maxlength="256"
+          autocomplete="off"
+          autocapitalize="off"
+          spellcheck="false"
+        />
+        <button type="button" class="btn-scan-qr" id="scanQrBtn" aria-label="Scanner un QR code">📷</button>
+      </div>
       <div class="flex gap-3">
         <button id="cancelJoinBtn"  class="btn btn-ghost   flex-1">Annuler</button>
         <button id="confirmJoinBtn" class="btn btn-primary flex-1">Rejoindre</button>
@@ -101,7 +165,20 @@
     </div>
   </div>
 
+  <!-- QR Scanner overlay -->
+  <div class="scanner-overlay hidden" id="scannerOverlay">
+    <video id="scannerVideo" class="scanner-video" autoplay playsinline muted></video>
+    <div class="scanner-ui">
+      <div class="scanner-frame"></div>
+      <p class="scanner-hint">Pointez la caméra vers le QR code</p>
+      <button class="btn btn-ghost" id="cancelScanBtn">Annuler</button>
+    </div>
+    <canvas id="scannerCanvas" class="hidden"></canvas>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1/dist/jsQR.js"></script>
   <script src="js/db.js"></script>
+  <script src="js/qrcode.js"></script>
   <script src="js/index.js"></script>
 </body>
 </html>

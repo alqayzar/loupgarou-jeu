@@ -80,7 +80,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   role = session.role;
 
   document.getElementById('roomCodeDisplay').textContent = roomId;
-  document.getElementById('roomCodeDisplay').addEventListener('click', copyRoomCode);
+  document.getElementById('roomCodeDisplay').addEventListener('click', openShareModal);
+  document.getElementById('shareModalCloseBtn').addEventListener('click', closeShareModal);
+  document.getElementById('shareModal').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeShareModal();
+  });
+  document.getElementById('copyCodeBtn').addEventListener('click', () => {
+    navigator.clipboard?.writeText(roomId)
+      .then(() => { showToast('Code copié !'); closeShareModal(); })
+      .catch(() => showToast(roomId));
+  });
+  document.getElementById('copyLinkBtn').addEventListener('click', () => {
+    const url = buildShareUrl();
+    navigator.clipboard?.writeText(url)
+      .then(() => { showToast('Lien copié !'); closeShareModal(); })
+      .catch(() => showToast(url));
+  });
   document.getElementById('navUsername').textContent = profile.username;
   document.getElementById('leaveBtn').addEventListener('click', leaveRoom);
 
@@ -101,7 +116,9 @@ function initHost() {
   peer = new Peer(roomId);
 
   peer.on('open', () => {
-    playerAdd(buildPlayer('host', profile.username, profile.image, true));
+    if (!players.find(p => p.isHost)) {
+      playerAdd(buildPlayer('host', profile.username, profile.image, true));
+    }
     renderAll();
     setStatus('waiting');
   });
@@ -289,10 +306,17 @@ function updatePlayerCount() {
   if (role === 'host') renderRoles();
 }
 
-function copyRoomCode() {
-  navigator.clipboard?.writeText(roomId)
-    .then(() => showToast('Code copié !'))
-    .catch(() => showToast(roomId));
+function buildShareUrl() {
+  return window.location.href.replace(/room\.html.*$/, `join.html#${roomId}`);
+}
+
+function openShareModal() {
+  document.getElementById('shareModal').classList.remove('hidden');
+  generateQR(document.getElementById('shareQrCanvas'), buildShareUrl());
+}
+
+function closeShareModal() {
+  document.getElementById('shareModal').classList.add('hidden');
 }
 
 async function leaveRoom() {

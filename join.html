@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rejoindre — Loup Garou</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/theme.css" />
+
+  <style>
+    /* Page-specific layout — no colours here */
+    .profile-card {
+      background-color: var(--bg-surface);
+      border: 1.5px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 24px 20px;
+      width: 100%;
+      max-width: 340px;
+    }
+
+    .app-title {
+      font-size: 2.6rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+      text-shadow: 0 0 40px rgba(124,77,255,0.5);
+    }
+
+    .app-subtitle {
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--text-muted);
+    }
+
+    .join-target {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    .join-target .room-code-tag {
+      display: inline-block;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+
+    #invalidMsg {
+      font-size: 0.85rem;
+      color: var(--candy-pink);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="color-strip"></div>
+
+  <main class="min-h-screen flex flex-col items-center justify-center p-4 gap-8">
+
+    <!-- Logo -->
+    <div class="text-center">
+      <div class="app-title">🐺 Loup Garou</div>
+      <div class="app-subtitle mt-1">Rejoindre une partie</div>
+    </div>
+
+    <!-- Room code indicator -->
+    <div class="join-target" id="joinTarget">
+      Partie&nbsp;: <span class="room-code-tag" id="roomCodeDisplay">------</span>
+    </div>
+
+    <!-- Profile card -->
+    <div class="profile-card flex flex-col items-center gap-4">
+
+      <!-- Avatar -->
+      <button class="avatar-uploader" id="avatarBtn" type="button" aria-label="Changer l'avatar">
+        <span class="avatar-placeholder" id="avatarPlaceholder">👤</span>
+        <img id="avatarImg" class="hidden" alt="Avatar" />
+        <div class="avatar-overlay">📷</div>
+      </button>
+      <input type="file" id="avatarFileInput" accept="image/*" class="hidden" />
+
+      <!-- Username -->
+      <input
+        type="text"
+        id="usernameInput"
+        class="input"
+        placeholder="Ton pseudo…"
+        maxlength="20"
+        autocomplete="off"
+        spellcheck="false"
+      />
+    </div>
+
+    <!-- Action -->
+    <div class="flex flex-col items-center gap-3 w-full" style="max-width: 340px;">
+      <p id="invalidMsg" class="hidden">Code de room invalide dans l'URL.</p>
+      <button id="joinBtn" class="btn btn-lime w-full">Rejoindre</button>
+    </div>
+
+  </main>
+
+  <script src="js/db.js"></script>
+  <script src="js/join.js"></script>
+</body>
+</html>

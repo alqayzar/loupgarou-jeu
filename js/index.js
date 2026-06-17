@@ -66,10 +66,53 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   confirmJoinBtn.addEventListener('click', confirmJoin);
 
+  // --- QR Scanner ---
+
+  const scanQrBtn      = document.getElementById('scanQrBtn');
+  const cancelScanBtn  = document.getElementById('cancelScanBtn');
+  const scannerOverlay = document.getElementById('scannerOverlay');
+  const scannerVideo   = document.getElementById('scannerVideo');
+  const scannerCanvas  = document.getElementById('scannerCanvas');
+
+  if (!navigator.mediaDevices?.getUserMedia) scanQrBtn.classList.add('hidden');
+
+  scanQrBtn.addEventListener('click', async () => {
+    try {
+      await startQrScanner(scannerVideo, scannerCanvas, (data) => {
+        roomCodeInput.value = data;
+        scannerOverlay.classList.add('hidden');
+      });
+      scannerOverlay.classList.remove('hidden');
+    } catch {
+      showToast('Caméra non disponible');
+    }
+  });
+
+  cancelScanBtn.addEventListener('click', () => {
+    stopQrScanner();
+    scannerOverlay.classList.add('hidden');
+  });
+
+  function showToast(message) {
+    document.querySelector('.toast')?.remove();
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = message;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2500);
+  }
+
   async function confirmJoin() {
-    const code = roomCodeInput.value.trim().toUpperCase();
+    const code = extractRoomCode(roomCodeInput.value);
     if (!code) { roomCodeInput.focus(); return; }
     await persistProfileAndNavigate('client', code);
+  }
+
+  function extractRoomCode(input) {
+    const raw = input.trim();
+    const hashIdx = raw.indexOf('#');
+    const code = hashIdx >= 0 ? raw.slice(hashIdx + 1) : raw;
+    return code.toUpperCase().trim() || null;
   }
 
   // --- Helpers ---
