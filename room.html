@@ -96,6 +96,12 @@
       padding: 8px 14px;
     }
 
+    .section-label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
     /* Role reveal modal */
     .role-reveal-emoji { font-size: 3.5rem; text-align: center; }
     .role-reveal-name  { font-size: 1.3rem; font-weight: 800; color: var(--text-primary); text-align: center; }
@@ -161,7 +167,10 @@
     <!-- Game view (hidden until game starts) -->
     <div id="gameView" style="display:none">
       <div>
-        <div class="section-label">Joueurs</div>
+        <div class="section-label section-label-row">
+          <span>Joueurs</span>
+          <span id="roundDisplay"></span>
+        </div>
         <div class="players-grid" id="gamePlayersGrid"></div>
       </div>
     </div>
@@ -176,7 +185,7 @@
 
   <!-- Game controls: game mode only (fixed bottom) -->
   <div class="game-controls hidden" id="gameControls">
-    <button class="btn btn-ghost hidden" id="startNightBtn">🌙 Commencer la nuit</button>
+    <button class="btn btn-ghost hidden flex-1" id="startNightBtn">🌙</button>
     <button class="btn btn-primary flex-1" id="showRoleBtn">👁 Mon rôle</button>
   </div>
 
@@ -197,6 +206,20 @@
         </button>
         <div class="section-content" id="rolesContent">
           <div class="roles-list" id="rolesGrid"></div>
+        </div>
+      </div>
+
+      <!-- Section : Hôte -->
+      <div class="settings-section">
+        <button class="section-toggle" id="hostToggle">
+          <span>Hôte</span>
+          <span class="section-toggle-icon rotated" id="hostToggleIcon">▼</span>
+        </button>
+        <div class="section-content" id="hostContent">
+          <label class="settings-checkbox-row">
+            <input type="checkbox" id="hostSpectatorCheck" />
+            <span>Spectateur <small>(non jouable)</small></span>
+          </label>
         </div>
       </div>
 

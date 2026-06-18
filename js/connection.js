@@ -48,7 +48,7 @@ function initHost() {
 }
 
 function onHostReceive(conn, msg) {
-  if (msg.type === MSG.START_NIGHT) { startNightFlow(); return; }
+  if (msg.type === MSG.START_NIGHT) { setPlayerWantNight(conn.peer, msg.value); return; }
   if (msg.type !== MSG.JOIN) return;
 
   connections[conn.peer] = conn;
@@ -162,6 +162,9 @@ function onClientReceive(msg) {
       if (gameActive) {
         connectedInGame = msg.players;
         renderGameGrid();
+        const me = connectedInGame.find(p => p.id === peer?.id);
+        if (me) updateNightBtn(me.wantStartNight ?? false);
+        if (msg.round != null) updateRoundDisplay(msg.round);
       } else {
         renderAll(msg.players);
         setStatus('waiting');

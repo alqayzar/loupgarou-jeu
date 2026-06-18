@@ -15,13 +15,27 @@
 function createPlayerCard(player, { canKick = false, onKick = null } = {}) {
   const card = document.createElement('div');
   card.id = `player-${player.id}`;
-  card.className = `player-card ${player.colorClass}`;
+  card.className = `player-card ${player.colorClass}${player.dead != null ? ' player-dead' : ''}`;
 
   if (player.isHost) {
     const badge = document.createElement('div');
     badge.className = 'host-badge';
     badge.textContent = 'Host';
     card.appendChild(badge);
+  }
+
+  if (player.wantStartNight) {
+    const nightBadge = document.createElement('div');
+    nightBadge.className = 'night-badge';
+    nightBadge.textContent = '🌙';
+    card.appendChild(nightBadge);
+  }
+
+  if (player.dead != null) {
+    const skull = document.createElement('div');
+    skull.className = 'dead-skull';
+    skull.textContent = '💀';
+    card.appendChild(skull);
   }
 
   if (canKick && !player.isHost && onKick) {

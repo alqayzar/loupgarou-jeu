@@ -26,32 +26,39 @@ const ROLES = [
   },
 ];
 
+let hostSpectator = false;
+
+// Nombre de joueurs effectivement jouables (exclut le host s'il est spectateur)
+function playableCount() {
+  return Math.max(0, players.length - (hostSpectator ? 1 : 0));
+}
+
 // Retourne le message d'erreur empêchant le lancement, ou null si la partie peut démarrer
 function getStartError() {
-  if (players.length < 3) return 'Il faut au moins 3 joueurs';
+  if (playableCount() < 3) return 'Il faut au moins 3 joueurs jouables';
   const wolves = ROLES.filter(r => r.type === 'wolf' && r.enabled).reduce((s, r) => s + r.count, 0);
   if (wolves >= getVillagersCount()) return 'Les loups sont trop nombreux par rapport aux villageois';
   return null;
 }
 
-// Camp des villageois = tous les joueurs qui ne sont pas loups
+// Camp des villageois = tous les joueurs jouables qui ne sont pas loups
 function getVillagersCount() {
   const wolves = ROLES
     .filter(r => r.type === 'wolf' && r.enabled)
     .reduce((s, r) => s + r.count, 0);
-  return Math.max(0, players.length - wolves);
+  return Math.max(0, playableCount() - wolves);
 }
 
 // Slots plain villageois restants après attribution de tous les rôles nommés
 function getPlainVillagerCount() {
   const taken = ROLES.filter(r => r.countable && r.enabled).reduce((s, r) => s + r.count, 0);
-  return Math.max(0, players.length - taken);
+  return Math.max(0, playableCount() - taken);
 }
 
-// Max slots qu'un rôle peut occuper = total − slots pris par les autres rôles − 1 (réserve villageois)
+// Max slots qu'un rôle peut occuper = total jouable − slots pris par les autres rôles − 1 (réserve villageois)
 function getMaxCount(roleId) {
   const r = ROLES.find(r => r.id === roleId);
-  const total = players.length;
+  const total = playableCount();
   if (total === 0) return 1;
   const otherTotal = ROLES
     .filter(r => r.id !== roleId && r.countable && r.enabled)
@@ -80,36 +87,46 @@ function changeRoleCount(id, delta) {
 
 function saveRoleSettings() {
   const state = ROLES.map(r => ({ id: r.id, enabled: r.enabled, count: r.count }));
-  dbSet('role_settings', state);
+  dbSet('role_settings', { roles: state, hostSpectator });
 }
 
 async function loadRoleSettings() {
   const saved = await dbGet('role_settings');
   if (!saved) return;
-  saved.forEach(({ id, enabled, count }) => {
+  const roles = Array.isArray(saved) ? saved : saved.roles;  // compat ancien format
+  roles?.forEach(({ id, enabled, count }) => {
     const r = ROLES.find(r => r.id === id);
     if (!r) return;
     if (!r.locked) r.enabled = enabled;
     if (r.countable && count != null) r.count = count;
   });
+  if (saved.hostSpectator != null) hostSpectator = saved.hostSpectator;
 }
 
-function assignRoles() {
-  const indices = players.map((_, i) => i).sort(() => Math.random() - 0.5);
+function assignRoles(playerList) {
+  const eligible = hostSpectator ? playerList.filter(p => !p.isHost) : playerList;
+  const shuffled  = [...eligible].sort(() => Math.random() - 0.5);
+  const result    = [];
   let idx = 0;
 
-  for (const r of ROLES.filter(r => r.enabled)) {
-    if (r.id === 'villageois') continue;
+  for (const r of ROLES.filter(r => r.enabled && r.id !== 'villageois')) {
     const count = r.countable ? r.count : 1;
-    for (let i = 0; i < count && idx < indices.length; i++) {
-      players[indices[idx++]].role = r;
+    for (let i = 0; i < count && idx < shuffled.length; i++, idx++) {
+      result.push({ id: shuffled[idx].id, role: r.id });
     }
   }
 
-  const villageois = ROLES.find(r => r.id === 'villageois');
-  while (idx < indices.length) {
-    players[indices[idx++]].role = villageois;
+  while (idx < shuffled.length) {
+    result.push({ id: shuffled[idx++].id, role: 'villageois' });
   }
+
+  // Host spectateur : toujours villageois mais marqué hors-jeu dans startGame
+  if (hostSpectator) {
+    const host = playerList.find(p => p.isHost);
+    if (host) result.push({ id: host.id, role: 'villageois' });
+  }
+
+  return result;
 }
 
 function renderRoles() {

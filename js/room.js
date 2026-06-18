@@ -54,8 +54,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   document.getElementById('sleepWakeBtn').addEventListener('click', () => setStateForAll('wake'));
   document.getElementById('startNightBtn').addEventListener('click', () => {
-    if (role === 'host') startNightFlow();
-    else hostConn.send({ type: MSG.START_NIGHT });
+    if (role === 'host') {
+      const me = connectedInGame.find(p => p.id === 'host');
+      const newValue = !(me?.wantStartNight ?? false);
+      setPlayerWantNight('host', newValue);
+      // Lire la valeur réelle après l'appel : checkNightVote a pu la remettre à false
+      updateNightBtn(connectedInGame.find(p => p.id === 'host')?.wantStartNight ?? false);
+    } else {
+      const me = connectedInGame.find(p => p.id === peer?.id);
+      const newValue = !(me?.wantStartNight ?? false);
+      hostConn.send({ type: MSG.START_NIGHT, value: newValue });
+      updateNightBtn(newValue);
+    }
   });
 
   if (role === 'host') {
@@ -84,7 +94,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 function buildPlayer(id, username, image, isHost) {
   const colorClass = COLOR_CLASSES[colorCounter % COLOR_CLASSES.length];
   colorCounter++;
-  return { id, username, image: image || null, isHost, colorClass };
+  return { id, username, image: image || null, isHost, colorClass, dead: null, wantStartNight: false };
 }
 
 function playerAdd(player)  { players.push(player); }
@@ -169,7 +179,17 @@ function initSettings() {
   });
 
   bindCollapsible('rolesToggle', 'rolesContent', 'rolesToggleIcon');
+  bindCollapsible('hostToggle',  'hostContent',  'hostToggleIcon');
   bindCollapsible('voiceToggle', 'voiceContent', 'voiceToggleIcon');
+
+  const hostSpectatorCheck = document.getElementById('hostSpectatorCheck');
+  hostSpectatorCheck.checked = hostSpectator;
+  hostSpectatorCheck.addEventListener('change', () => {
+    hostSpectator = hostSpectatorCheck.checked;
+    saveRoleSettings();
+    renderRoles();
+    updateStartBtn();
+  });
 
   renderRoles();
   initVoiceSection();

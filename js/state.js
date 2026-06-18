@@ -19,6 +19,7 @@ const States = Object.freeze({
   // fn est appelée au moment de l'exécution et doit retourner un tableau d'étapes.
   // Utile pour des paramètres dynamiques connus seulement pendant le déroulé du jeu.
   run:    (fn)                  => ({ type: 'run',    fn }),
+  kill:   (peerId)              => ({ type: 'kill',   peerId }),
 });
 
 // ─── Flow runner ──────────────────────────────────────────────────────────────
@@ -59,6 +60,9 @@ async function _executeStep(step, labels) {
       break;
     case 'run':
       await runFlow(step.fn());
+      break;
+    case 'kill':
+      killPlayer(step.peerId);
       break;
   }
 }
