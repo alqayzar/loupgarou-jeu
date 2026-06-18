@@ -52,6 +52,32 @@ async function startGame() {
   enterGameMode();
 }
 
+function startNightFlow() {
+  runFlow([
+    States.say('La nuit tombe sur le village…'),
+    States.sleep(),
+    States.wait(2),
+    States.wake('loupgarou'),
+    States.say('Loups Garous, ouvrez les yeux.'),
+    States.wait(4),
+    States.say('Loups Garous, fermez les yeux.'),
+    States.sleep(),
+    States.wait(1),
+
+    States.jumpif('apres_sorciere', () => !roleAssignments.some(a => a.role === 'sorciere')),
+    States.wake('sorciere'),
+    States.say('Sorcière, ouvrez les yeux.'),
+    States.wait(4),
+    States.say('Sorcière, fermez les yeux.'),
+    States.sleep(),
+    States.wait(1),
+    States.label('apres_sorciere'),
+    
+    States.say('Le jour se lève.'),
+    States.wake(null),
+  ]);
+}
+
 // ─── End game (host) ─────────────────────────────────────────────────────────
 async function endGame() {
   for (const conn of Object.values(connections)) conn.send({ type: MSG.GAME_END });
@@ -136,13 +162,12 @@ function enterGameMode() {
   document.getElementById('gameView').style.display = '';
   document.getElementById('gameControls').classList.remove('hidden');
   document.body.classList.add('has-game-controls');
+  document.getElementById('startNightBtn').classList.remove('hidden');
 
   if (role === 'host') {
     document.getElementById('hostControls').classList.add('hidden');
     document.body.classList.remove('has-host-controls');
     document.getElementById('endGameBtn').classList.remove('hidden');
-    document.getElementById('nightBtn').classList.remove('hidden');
-    document.getElementById('dayBtn').classList.remove('hidden');
   }
 
   renderGameGrid();
@@ -150,18 +175,18 @@ function enterGameMode() {
 
 // ─── Exit game mode ───────────────────────────────────────────────────────────
 function exitGameMode() {
+  cancelFlow();
   exitSleep();
   document.getElementById('gameView').style.display = 'none';
   document.getElementById('gameControls').classList.add('hidden');
   document.body.classList.remove('has-game-controls');
+  document.getElementById('startNightBtn').classList.add('hidden');
   document.getElementById('waitingView').style.display = '';
 
   if (role === 'host') {
     document.getElementById('hostControls').classList.remove('hidden');
     document.body.classList.add('has-host-controls');
     document.getElementById('endGameBtn').classList.add('hidden');
-    document.getElementById('nightBtn').classList.add('hidden');
-    document.getElementById('dayBtn').classList.add('hidden');
   }
 }
 

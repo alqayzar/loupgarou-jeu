@@ -53,11 +53,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (e.target === e.currentTarget) closeRoleModal();
   });
   document.getElementById('sleepWakeBtn').addEventListener('click', () => setStateForAll('wake'));
-
-  if (role === 'host') {
-    document.getElementById('nightBtn').addEventListener('click', () => setStateForAll('sleep'));
-    document.getElementById('dayBtn').addEventListener('click',   () => setStateForAll('wake'));
-  }
+  document.getElementById('startNightBtn').addEventListener('click', () => {
+    if (role === 'host') startNightFlow();
+    else hostConn.send({ type: MSG.START_NIGHT });
+  });
 
   if (role === 'host') {
     document.getElementById('hostControls').classList.remove('hidden');

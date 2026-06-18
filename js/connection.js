@@ -7,6 +7,7 @@ const MSG = Object.freeze({
   GAME_START:    'game_start',    // host → client: { role }
   GAME_END:      'game_end',      // host → all:   game is over, back to waiting room
   PLAYER_STATE:  'player_state',  // host → client: { state } — état d'un joueur ('sleep', 'wake', …)
+  START_NIGHT:   'start_night',   // client → host: demande de lancer la nuit
 });
 
 // ─── Connection state ────────────────────────────────────────────────────────
@@ -47,6 +48,7 @@ function initHost() {
 }
 
 function onHostReceive(conn, msg) {
+  if (msg.type === MSG.START_NIGHT) { startNightFlow(); return; }
   if (msg.type !== MSG.JOIN) return;
 
   connections[conn.peer] = conn;
