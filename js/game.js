@@ -34,7 +34,7 @@ async function startGame() {
 
   for (const [peerId, conn] of Object.entries(connections)) {
     const a = roleAssignments.find(a => a.id === peerId);
-    conn.send({ type: MSG.GAME_START, role: a?.role || 'villageois' });
+    conn.send({ type: MSG.GAME_START, role: a?.role || 'villageois', players: connectedInGame });
   }
 
   enterGameMode();
@@ -112,7 +112,7 @@ async function endGame() {
 async function onGameStart(msg) {
   myRole          = msg.role;
   gameActive      = true;
-  connectedInGame = [...players];
+  connectedInGame = msg.players ?? [...players];
 
   const session = await dbGet('game_session');
   await dbSet('game_session', { ...session, gameActive: true, myRole });
@@ -199,6 +199,8 @@ async function restoreGameStateHost(session) {
   gameActive          = true;
   players             = [...crystallizedPlayers];
   connectedInGame     = crystallizedPlayers.filter(p => p.isHost);
+  const hostPlayer    = crystallizedPlayers.find(p => p.isHost);
+  if (hostPlayer?.dead != null) myState = 'dead';
   enterGameMode();
 }
 
@@ -218,7 +220,7 @@ function enterGameMode() {
   document.body.classList.add('has-game-controls');
   const nightBtn = document.getElementById('startNightBtn');
   nightBtn.classList.remove('hidden');
-  nightBtn.disabled = false;
+  nightBtn.disabled = (myState === 'dead');
   updateNightBtn(false);
   updateRoundDisplay(round);
 
@@ -228,6 +230,7 @@ function enterGameMode() {
     document.getElementById('endGameBtn').classList.remove('hidden');
   }
 
+  setStatus('playing');
   renderGameGrid();
 }
 
@@ -242,6 +245,7 @@ function exitGameMode() {
   document.getElementById('startNightBtn').classList.add('hidden');
   document.getElementById('waitingView').style.display = '';
 
+  setStatus('waiting');
   if (role === 'host') {
     document.getElementById('hostControls').classList.remove('hidden');
     document.body.classList.add('has-host-controls');
@@ -273,7 +277,7 @@ function applyState(state) {
   switch (state) {
     case 'sleep': enterSleep(); break;
     case 'dead':
-      exitSleep();
+      // exitSleep();
       document.getElementById('startNightBtn').disabled = true;
       break;
     default: exitSleep(); break;

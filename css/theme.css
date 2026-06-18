@@ -427,6 +427,7 @@ input, button, textarea { font-family: inherit; }
 }
 .status-dot.connecting   { background-color: var(--candy-orange); animation: pulse 1s infinite; }
 .status-dot.waiting      { background-color: var(--color-success); }
+.status-dot.playing      { background-color: var(--color-primary); }
 .status-dot.reconnecting { background-color: var(--candy-yellow); animation: pulse 1s infinite; }
 .status-dot.error        { background-color: var(--color-danger); }
 

@@ -130,6 +130,7 @@ function kickPlayer(peerId) {
 const STATUS_LABELS = {
   connecting:   'Connexion…',
   waiting:      'En attente de joueurs',
+  playing:      'En partie',
   reconnecting: 'Reconnexion…',
   error:        'Erreur',
 };

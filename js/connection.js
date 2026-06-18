@@ -57,7 +57,7 @@ function onHostReceive(conn, msg) {
     // Reconnexion pendant la partie — renvoyer le rôle et mettre à jour la liste connectée
     const assignment = roleAssignments.find(a => a.id === conn.peer);
     if (assignment) {
-      conn.send({ type: MSG.GAME_START, role: assignment.role });
+      conn.send({ type: MSG.GAME_START, role: assignment.role, players: connectedInGame });
       const player = crystallizedPlayers.find(p => p.id === conn.peer);
       if (player && !connectedInGame.find(p => p.id === conn.peer)) {
         connectedInGame.push(player);
@@ -172,7 +172,6 @@ function onClientReceive(msg) {
       break;
     case MSG.GAME_START:
       onGameStart(msg);
-      setStatus('En partie');
       break;
     case MSG.GAME_END:
       onGameEnd();
