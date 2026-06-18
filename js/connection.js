@@ -1,9 +1,11 @@
 // ─── Message type constants ──────────────────────────────────────────────────
 const MSG = Object.freeze({
-  JOIN:       'join',       // client → host: { username, image }
-  SYNC:       'sync',       // host → all:   { players }  (full list, on every change)
-  HOST_CLOSE: 'host_close', // host → all:   room is closing
-  KICK:       'kick',       // host → client: you have been removed
+  JOIN:       'join',        // client → host: { username, image }
+  SYNC:       'sync',        // host → all:   { players }  (full list, on every change)
+  HOST_CLOSE: 'host_close',  // host → all:   room is closing
+  KICK:       'kick',        // host → client: you have been removed
+  GAME_START: 'game_start',  // host → client: { role }
+  GAME_END:   'game_end',    // host → all:   game is over, back to waiting room
 });
 
 // ─── Connection state ────────────────────────────────────────────────────────
@@ -48,15 +50,35 @@ function onHostReceive(conn, msg) {
 
   connections[conn.peer] = conn;
 
+  if (gameActive) {
+    // Reconnexion pendant la partie — renvoyer le rôle et mettre à jour la liste connectée
+    const assignment = roleAssignments.find(a => a.id === conn.peer);
+    if (assignment) {
+      conn.send({ type: MSG.GAME_START, role: assignment.role });
+      const player = crystallizedPlayers.find(p => p.id === conn.peer);
+      if (player && !connectedInGame.find(p => p.id === conn.peer)) {
+        connectedInGame.push(player);
+        renderGameGrid();
+        syncConnectedPlayers();
+      }
+    }
+    return;
+  }
+
   playerRemove(conn.peer);
   playerAdd(buildPlayer(conn.peer, resolveUsername(msg.username), msg.image, false));
-
   renderAll();
   syncAll();
 }
 
 function onClientDisconnect(peerId) {
   delete connections[peerId];
+
+  if (gameActive) {
+    onPlayerDisconnectedDuringGame(peerId);
+    return;
+  }
+
   playerRemove(peerId);
   renderAll();
   syncAll();
@@ -134,7 +156,20 @@ function scheduleReconnect() {
 function onClientReceive(msg) {
   switch (msg.type) {
     case MSG.SYNC:
-      renderAll(msg.players);
+      if (gameActive) {
+        connectedInGame = msg.players;
+        renderGameGrid();
+      } else {
+        renderAll(msg.players);
+        setStatus('waiting');
+      }
+      break;
+    case MSG.GAME_START:
+      onGameStart(msg);
+      setStatus('En partie');
+      break;
+    case MSG.GAME_END:
+      onGameEnd();
       setStatus('waiting');
       break;
     case MSG.HOST_CLOSE:

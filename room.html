@@ -7,7 +7,7 @@
 
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="css/theme.css" />
-<!-- 
+<!--
   <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
   <script>
     eruda.init();
@@ -63,7 +63,9 @@
       margin-bottom: 12px;
     }
 
-    .host-controls {
+    /* Fixed bottom bars */
+    .host-controls,
+    .game-controls {
       position: fixed;
       bottom: 0;
       left: 0;
@@ -75,10 +77,29 @@
       gap: 10px;
     }
 
-    /* Prevent content from hiding behind the fixed bar */
-    body.has-host-controls .page-main {
+    body.has-host-controls .page-main,
+    body.has-game-controls .page-main {
       padding-bottom: 80px;
     }
+
+    /* Waiting/game views inherit the flex-column layout of page-main */
+    #waitingView,
+    #gameView {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* End game button — compact to match Quitter */
+    #endGameBtn {
+      font-size: 0.78rem;
+      padding: 8px 14px;
+    }
+
+    /* Role reveal modal */
+    .role-reveal-emoji { font-size: 3.5rem; text-align: center; }
+    .role-reveal-name  { font-size: 1.3rem; font-weight: 800; color: var(--text-primary); text-align: center; }
+    .role-reveal-desc  { font-size: 0.875rem; color: var(--text-secondary); text-align: center; }
   </style>
 </head>
 <body>
@@ -91,33 +112,51 @@
       <span class="navbar-logo">🐺</span>
       <span class="nav-username" id="navUsername"></span>
     </div>
-    <button class="btn btn-danger" id="leaveBtn">Quitter</button>
+    <div class="flex gap-2 items-center">
+      <button class="btn btn-ghost hidden" id="endGameBtn">⏹ Terminer</button>
+      <button class="btn btn-danger" id="leaveBtn">Quitter</button>
+    </div>
   </nav>
 
   <main class="page-main">
 
-    <span class="room-code-tag room-code-clickable" id="roomCodeDisplay" title="Copier le code">------</span>
-
-    <!-- Status bar -->
+    <!-- Status bar — always visible -->
     <div class="status-bar">
       <span class="status-dot connecting" id="statusDot"></span>
       <span id="statusText">Connexion…</span>
       <span class="player-count" id="playerCount"></span>
     </div>
 
-    <!-- Players section -->
-    <div>
-      <div class="section-label">Joueurs</div>
-      <div class="players-grid" id="playersGrid"></div>
+    <!-- Waiting room view -->
+    <div id="waitingView">
+      <span class="room-code-tag room-code-clickable" id="roomCodeDisplay" title="Copier le code">------</span>
+
+      <div>
+        <div class="section-label">Joueurs</div>
+        <div class="players-grid" id="playersGrid"></div>
+      </div>
     </div>
 
-    <!-- Host-only: bottom bar (hidden for clients) -->
-    <div class="host-controls hidden" id="hostControls">
-      <button class="btn btn-ghost" id="settingsBtn">⚙ Paramètres</button>
-      <button class="btn btn-primary flex-1" id="startBtn" disabled>Lancer</button>
+    <!-- Game view (hidden until game starts) -->
+    <div id="gameView" style="display:none">
+      <div>
+        <div class="section-label">Joueurs</div>
+        <div class="players-grid" id="gamePlayersGrid"></div>
+      </div>
     </div>
 
   </main>
+
+  <!-- Host controls: waiting room only (fixed bottom) -->
+  <div class="host-controls hidden" id="hostControls">
+    <button class="btn btn-ghost" id="settingsBtn">⚙ Paramètres</button>
+    <button class="btn btn-primary flex-1" id="startBtn" disabled>Lancer</button>
+  </div>
+
+  <!-- Game controls: game mode only (fixed bottom) -->
+  <div class="game-controls hidden" id="gameControls">
+    <button class="btn btn-primary w-full" id="showRoleBtn">👁 Mon rôle</button>
+  </div>
 
   <!-- Settings bottom sheet (host only) -->
   <div class="settings-overlay hidden" id="settingsOverlay">
@@ -210,6 +249,16 @@
     </div>
   </div>
 
+  <!-- Role reveal modal -->
+  <div class="modal-overlay hidden" id="roleModal">
+    <div class="modal-box flex flex-col items-center gap-4">
+      <div class="role-reveal-emoji" id="roleRevealEmoji"></div>
+      <div class="role-reveal-name"  id="roleRevealName"></div>
+      <p   class="role-reveal-desc"  id="roleRevealDesc"></p>
+      <button class="btn btn-ghost w-full" id="closeRoleBtn">Fermer</button>
+    </div>
+  </div>
+
   <script src="https://unpkg.com/peerjs@1/dist/peerjs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1/build/qrcode.min.js"></script>
   <script src="js/db.js"></script>
@@ -218,6 +267,7 @@
   <script src="js/qrcode.js"></script>
   <script src="js/roles.js"></script>
   <script src="js/connection.js"></script>
+  <script src="js/game.js"></script>
   <script src="js/room.js"></script>
 
 </body>

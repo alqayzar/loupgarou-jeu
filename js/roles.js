@@ -94,6 +94,24 @@ async function loadRoleSettings() {
   });
 }
 
+function assignRoles() {
+  const indices = players.map((_, i) => i).sort(() => Math.random() - 0.5);
+  let idx = 0;
+
+  for (const r of ROLES.filter(r => r.enabled)) {
+    if (r.id === 'villageois') continue;
+    const count = r.countable ? r.count : 1;
+    for (let i = 0; i < count && idx < indices.length; i++) {
+      players[indices[idx++]].role = r;
+    }
+  }
+
+  const villageois = ROLES.find(r => r.id === 'villageois');
+  while (idx < indices.length) {
+    players[indices[idx++]].role = villageois;
+  }
+}
+
 function renderRoles() {
   const list = document.getElementById('rolesGrid');
   list.innerHTML = '';

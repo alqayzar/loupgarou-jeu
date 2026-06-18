@@ -46,13 +46,30 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('navUsername').textContent = profile.username;
   document.getElementById('leaveBtn').addEventListener('click', leaveRoom);
 
+  // Game UI — wired for both host and client
+  document.getElementById('showRoleBtn').addEventListener('click', showRoleModal);
+  document.getElementById('closeRoleBtn').addEventListener('click', closeRoleModal);
+  document.getElementById('roleModal').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeRoleModal();
+  });
+
   if (role === 'host') {
     document.getElementById('hostControls').classList.remove('hidden');
     document.body.classList.add('has-host-controls');
+    document.getElementById('startBtn').addEventListener('click', startGame);
+    document.getElementById('endGameBtn').addEventListener('click', endGame);
     await loadRoleSettings();
     initSettings();
+
+    if (session.gameActive) {
+      await restoreGameStateHost(session);
+    }
+
     initHost();
   } else {
+    if (session.gameActive) {
+      restoreGameStateClient(session);
+    }
     initClient(session.myPeerId || undefined);
   }
 });
