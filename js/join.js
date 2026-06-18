@@ -25,18 +25,35 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // --- Avatar handling ---
 
-  avatarBtn.addEventListener('click', () => avatarFileInput.click());
+  const avatarCameraInput = document.getElementById('avatarCameraInput');
+  const avatarSourceModal = document.getElementById('avatarSourceModal');
+  const avatarCameraBtn   = document.getElementById('avatarCameraBtn');
+  const avatarGalleryBtn  = document.getElementById('avatarGalleryBtn');
 
-  avatarFileInput.addEventListener('change', (e) => {
+  avatarBtn.addEventListener('click', () => avatarSourceModal.classList.remove('hidden'));
+  avatarSourceModal.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) avatarSourceModal.classList.add('hidden');
+  });
+  avatarCameraBtn.addEventListener('click', () => {
+    avatarSourceModal.classList.add('hidden');
+    avatarCameraInput.click();
+  });
+  avatarGalleryBtn.addEventListener('click', () => {
+    avatarSourceModal.classList.add('hidden');
+    avatarFileInput.click();
+  });
+
+  function handleAvatarFile(e) {
     const file = e.target.files[0];
     if (!file) return;
+    e.target.value = '';
     const reader = new FileReader();
-    reader.onload = (ev) => {
-      profile.image = ev.target.result;
-      showAvatarImage(profile.image);
-    };
+    reader.onload = (ev) => { profile.image = ev.target.result; showAvatarImage(profile.image); };
     reader.readAsDataURL(file);
-  });
+  }
+
+  avatarFileInput.addEventListener('change',  handleAvatarFile);
+  avatarCameraInput.addEventListener('change', handleAvatarFile);
 
   function showAvatarImage(src) {
     avatarImg.src = src;

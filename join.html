@@ -83,7 +83,8 @@
         <img id="avatarImg" class="hidden" alt="Avatar" />
         <div class="avatar-overlay">📷</div>
       </button>
-      <input type="file" id="avatarFileInput" accept="image/*" class="hidden" />
+      <input type="file" id="avatarFileInput"      accept="image/*"                    class="hidden" />
+      <input type="file" id="avatarCameraInput"   accept="image/*" capture="environment" class="hidden" />
 
       <!-- Username -->
       <input
@@ -104,6 +105,15 @@
     </div>
 
   </main>
+
+  <!-- Avatar source choice -->
+  <div class="modal-overlay hidden" id="avatarSourceModal">
+    <div class="modal-box flex flex-col gap-3">
+      <div class="modal-title">Photo de profil</div>
+      <button type="button" class="btn btn-ghost w-full" id="avatarCameraBtn">📷 Prendre une photo</button>
+      <button type="button" class="btn btn-ghost w-full" id="avatarGalleryBtn">🖼 Choisir dans la galerie</button>
+    </div>
+  </div>
 
   <script src="js/db.js"></script>
   <script src="js/join.js"></script>
