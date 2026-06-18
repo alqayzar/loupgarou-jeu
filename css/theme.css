@@ -60,6 +60,9 @@
   --radius-md: 12px;
   --radius-lg: 20px;
 
+  /* Game states */
+  --sleep-bg: #000;
+
   /* Kick button — visible on card hover (always visible on touch screens) */
 .kick-btn {
   position: absolute;

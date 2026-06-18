@@ -1,5 +1,6 @@
 // ─── Game state ──────────────────────────────────────────────────────────────
 let gameActive          = false;
+let myState             = null;   // état courant du joueur local
 let myRole              = null;
 let crystallizedPlayers = [];   // host: liste complète figée au lancement
 let roleAssignments     = [];   // host: [{ id, role }]
@@ -140,6 +141,8 @@ function enterGameMode() {
     document.getElementById('hostControls').classList.add('hidden');
     document.body.classList.remove('has-host-controls');
     document.getElementById('endGameBtn').classList.remove('hidden');
+    document.getElementById('nightBtn').classList.remove('hidden');
+    document.getElementById('dayBtn').classList.remove('hidden');
   }
 
   renderGameGrid();
@@ -147,6 +150,7 @@ function enterGameMode() {
 
 // ─── Exit game mode ───────────────────────────────────────────────────────────
 function exitGameMode() {
+  exitSleep();
   document.getElementById('gameView').style.display = 'none';
   document.getElementById('gameControls').classList.add('hidden');
   document.body.classList.remove('has-game-controls');
@@ -156,6 +160,8 @@ function exitGameMode() {
     document.getElementById('hostControls').classList.remove('hidden');
     document.body.classList.add('has-host-controls');
     document.getElementById('endGameBtn').classList.add('hidden');
+    document.getElementById('nightBtn').classList.add('hidden');
+    document.getElementById('dayBtn').classList.add('hidden');
   }
 }
 
@@ -172,6 +178,45 @@ function renderGameGrid() {
     document.getElementById('playerCount').textContent = `${x}/${y} joueur${y > 1 ? 's' : ''}`;
   } else {
     document.getElementById('playerCount').textContent = `${x} joueur${x > 1 ? 's' : ''}`;
+  }
+}
+
+// ─── Player state system ─────────────────────────────────────────────────────
+
+// Dispatcher central — ajouter un case ici pour chaque nouvel état
+function applyState(state) {
+  myState = state === 'wake' ? null : state;
+  switch (state) {
+    case 'sleep': enterSleep(); break;
+    default:      exitSleep();  break;
+  }
+}
+
+function enterSleep() {
+  document.getElementById('sleepOverlay').style.display = 'flex';
+  if (role === 'host') {
+    document.getElementById('sleepWakeBtn').classList.remove('hidden');
+  }
+}
+
+function exitSleep() {
+  document.getElementById('sleepOverlay').style.display = 'none';
+  document.getElementById('sleepWakeBtn').classList.add('hidden');
+}
+
+// Envoie un état à tous les joueurs (y compris le host lui-même)
+function setStateForAll(state) {
+  const msg = { type: MSG.PLAYER_STATE, state };
+  for (const conn of Object.values(connections)) conn.send(msg);
+  applyState(state);
+}
+
+// Envoie un état à un joueur précis (peerId = 'host' pour le host lui-même)
+function setStateForPlayer(peerId, state) {
+  if (peerId === 'host') {
+    applyState(state);
+  } else {
+    connections[peerId]?.send({ type: MSG.PLAYER_STATE, state });
   }
 }
 

@@ -52,6 +52,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('roleModal').addEventListener('click', (e) => {
     if (e.target === e.currentTarget) closeRoleModal();
   });
+  document.getElementById('sleepWakeBtn').addEventListener('click', () => setStateForAll('wake'));
+
+  if (role === 'host') {
+    document.getElementById('nightBtn').addEventListener('click', () => setStateForAll('sleep'));
+    document.getElementById('dayBtn').addEventListener('click',   () => setStateForAll('wake'));
+  }
 
   if (role === 'host') {
     document.getElementById('hostControls').classList.remove('hidden');

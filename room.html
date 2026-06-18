@@ -100,6 +100,27 @@
     .role-reveal-emoji { font-size: 3.5rem; text-align: center; }
     .role-reveal-name  { font-size: 1.3rem; font-weight: 800; color: var(--text-primary); text-align: center; }
     .role-reveal-desc  { font-size: 0.875rem; color: var(--text-secondary); text-align: center; }
+
+    /* Sleep overlay */
+    .sleep-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: var(--sleep-bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+    }
+    .sleep-moon { font-size: 5rem; }
+    .sleep-label {
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--text-muted);
+    }
   </style>
 </head>
 <body>
@@ -155,7 +176,9 @@
 
   <!-- Game controls: game mode only (fixed bottom) -->
   <div class="game-controls hidden" id="gameControls">
-    <button class="btn btn-primary w-full" id="showRoleBtn">👁 Mon rôle</button>
+    <button class="btn btn-ghost hidden" id="nightBtn">🌙</button>
+    <button class="btn btn-ghost hidden" id="dayBtn">☀️</button>
+    <button class="btn btn-primary flex-1" id="showRoleBtn">👁 Mon rôle</button>
   </div>
 
   <!-- Settings bottom sheet (host only) -->
@@ -247,6 +270,13 @@
         <button class="btn btn-cyan flex-1" id="copyLinkBtn">Copier le lien</button>
       </div>
     </div>
+  </div>
+
+  <!-- Sleep overlay -->
+  <div class="sleep-overlay" id="sleepOverlay" style="display:none">
+    <div class="sleep-moon">🌙</div>
+    <p class="sleep-label">Fermez les yeux…</p>
+    <button class="btn btn-ghost hidden" id="sleepWakeBtn">☀️ Réveiller tout le monde</button>
   </div>
 
   <!-- Role reveal modal -->

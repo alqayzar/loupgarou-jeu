@@ -4,8 +4,9 @@ const MSG = Object.freeze({
   SYNC:       'sync',        // host → all:   { players }  (full list, on every change)
   HOST_CLOSE: 'host_close',  // host → all:   room is closing
   KICK:       'kick',        // host → client: you have been removed
-  GAME_START: 'game_start',  // host → client: { role }
-  GAME_END:   'game_end',    // host → all:   game is over, back to waiting room
+  GAME_START:    'game_start',    // host → client: { role }
+  GAME_END:      'game_end',      // host → all:   game is over, back to waiting room
+  PLAYER_STATE:  'player_state',  // host → client: { state } — état d'un joueur ('sleep', 'wake', …)
 });
 
 // ─── Connection state ────────────────────────────────────────────────────────
@@ -171,6 +172,9 @@ function onClientReceive(msg) {
     case MSG.GAME_END:
       onGameEnd();
       setStatus('waiting');
+      break;
+    case MSG.PLAYER_STATE:
+      applyState(msg.state);
       break;
     case MSG.HOST_CLOSE:
       showToast('La room a été fermée');
