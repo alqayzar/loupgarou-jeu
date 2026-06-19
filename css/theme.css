@@ -197,6 +197,14 @@ input, button, textarea { font-family: inherit; }
 }
 .btn-ghost:hover { border-color: var(--color-primary); color: var(--text-primary); }
 
+.btn-confirmed {
+  background-color: transparent;
+  color: var(--color-success);
+  border: 2px solid var(--color-success);
+  box-shadow: 0 0 10px rgba(29,233,182,0.25);
+}
+.btn-confirmed:hover { background-color: var(--color-success); color: var(--bg-page); }
+
 /* ==========================================================
    Inputs
    ========================================================== */
@@ -306,8 +314,8 @@ input, button, textarea { font-family: inherit; }
    ========================================================== */
 .players-grid {
   display: grid;
-  margin-left: 10px;
-  margin-right: 10px;
+  /* margin-left: 10px; */
+  /* margin-right: 10px; */
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
 }
@@ -423,7 +431,14 @@ input, button, textarea { font-family: inherit; }
   color: var(--text-muted);
 }
 
-.selection-badge ~ .selection-badge { margin-left: -10px; }
+.selection-badge ~ .selection-badge { margin-left: -14px; }
+
+.selection-badge-overflow {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  background-color: var(--bg-card);
+}
 
 .selection-badge img {
   width: 100%;

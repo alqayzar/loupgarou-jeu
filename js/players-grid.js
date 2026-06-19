@@ -86,7 +86,10 @@ function createPlayerCard(player, { canKick = false, onKick = null, onSelect = n
   if (selectors.length) {
     const badges = document.createElement('div');
     badges.className = 'selection-badges';
-    selectors.forEach(selectorId => {
+    const MAX_VISIBLE = 5;
+    const visible  = selectors.slice(0, MAX_VISIBLE);
+    const overflow = selectors.length - MAX_VISIBLE;
+    visible.forEach(selectorId => {
       const badge = document.createElement('div');
       badge.className = 'selection-badge';
       const inGame = typeof connectedInGame !== 'undefined'
@@ -103,6 +106,12 @@ function createPlayerCard(player, { canKick = false, onKick = null, onSelect = n
       }
       badges.appendChild(badge);
     });
+    if (overflow > 0) {
+      const extra = document.createElement('div');
+      extra.className = 'selection-badge selection-badge-overflow';
+      extra.textContent = `+${overflow}`;
+      badges.appendChild(extra);
+    }
     card.appendChild(badges);
   }
 

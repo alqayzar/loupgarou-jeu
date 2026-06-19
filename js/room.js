@@ -63,7 +63,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   document.getElementById('sleepWakeBtn').addEventListener('click', () => setStateForAll('wake'));
   document.getElementById('selectBtn').addEventListener('click', () => {
-    if (mySelection) handleCardSelect(mySelection); // re-clic = désélectionne → sort du mode
+    if (myConfirmed) {
+      myConfirmed = false;
+      updateSelectBtnStyle();
+      if (role === 'host') {
+        onCancelSelectionReceived('host');
+      } else {
+        hostConn.send({ type: MSG.CANCEL_SELECTION });
+      }
+    } else {
+      if (!mySelection) return;
+      myConfirmed = true;
+      updateSelectBtnStyle();
+      if (role === 'host') {
+        onConfirmSelectionReceived('host', mySelection);
+      } else {
+        hostConn.send({ type: MSG.CONFIRM_SELECTION, targetId: mySelection });
+      }
+    }
   });
   document.getElementById('startNightBtn').addEventListener('click', () => {
     if (role === 'host') {

@@ -4,6 +4,7 @@ let round               = 0;     // numéro de la nuit en cours (0 = partie non 
 let myState             = null;   // état courant du joueur local
 let myRole              = null;
 let mySelection         = null;  // peerId de la carte sélectionnée par le joueur local
+let myConfirmed         = false; // true si le joueur local a confirmé sa sélection
 let crystallizedPlayers = [];   // host: liste complète figée au lancement
 let roleAssignments     = [];   // host: [{ id, role }]
 let connectedInGame     = [];   // in-memory: joueurs actuellement connectés en jeu
@@ -47,13 +48,25 @@ function updateRoundDisplay(r) {
   if (el) el.textContent = r > 0 ? `Nuit ${r}` : '';
 }
 
-function startNightFlow() {
+async function startNightFlow() {
   round++;
   updateRoundDisplay(round);
-  syncConnectedPlayers();
-  runFlow([
-    States.wait(5),
+  setNightUIMode(true);
+  syncConnectedPlayers(true);
+
+  let all_confirmed = false;
+
+  await runFlow([
+    // States.wait(5),
+    States.say("Veuillez séléctionner"),
+    States.label("redo selection"),
     States.select(null),
+    States.on("confirm_selection_all", (targets) => {
+      all_confirmed = targets.length > 0 && targets.every(t => t === targets[0]);
+    }),
+    States.reset(),
+    States.jumpif("redo selection", () => !all_confirmed),
+    States.say("On continue maintenant."),
     States.wait(10000000),
     States.say('La nuit tombe sur le village…'),
     States.sleep(),
@@ -91,6 +104,8 @@ function startNightFlow() {
       return morts.map(p => States.say(`${p.username} est mort.`));
     }),
   ]);
+  setNightUIMode(false);
+  syncConnectedPlayers(false);
 }
 
 // ─── End game (host) ─────────────────────────────────────────────────────────
@@ -190,10 +205,17 @@ function updateNightBtn(active) {
   btn.classList.toggle('btn-primary', active);
 }
 
-// ─── Sync connected players → all clients ──────────────────────────────────── mort
-function syncConnectedPlayers() {
+// ─── Sync connected players → all clients ────────────────────────────────────
+function syncConnectedPlayers(isNight) {
   const msg = { type: MSG.SYNC, players: _stripImages(connectedInGame), round };
+  if (isNight !== undefined) msg.isNight = isNight;
   for (const conn of Object.values(connections)) conn.send(msg);
+}
+
+// ─── Night UI mode (hide/show night+role buttons) ─────────────────────────────
+function setNightUIMode(active) {
+  document.getElementById('startNightBtn').classList.toggle('hidden', active);
+  document.getElementById('showRoleBtn').classList.toggle('hidden', active);
 }
 
 // ─── Restore on reload (host) ────────────────────────────────────────────────
@@ -223,8 +245,8 @@ function enterGameMode() {
   document.getElementById('gameView').style.display = '';
   document.getElementById('gameControls').classList.remove('hidden');
   document.body.classList.add('has-game-controls');
+  setNightUIMode(false);
   const nightBtn = document.getElementById('startNightBtn');
-  nightBtn.classList.remove('hidden');
   nightBtn.disabled = (myState === 'dead');
   updateNightBtn(false);
   updateRoundDisplay(round);
@@ -245,6 +267,7 @@ function exitGameMode() {
   exitSleep();
   round = 0;
   mySelection = null;
+  myConfirmed = false;
   setSelectionMode(false);
   document.getElementById('gameView').style.display = 'none';
   document.getElementById('gameControls').classList.add('hidden');
@@ -274,6 +297,7 @@ function handleCardSelect(targetId) {
 }
 
 function onSelectionReceived(selectorId, targetId) {
+  States.triggerEvent("selection", { selectorId, targetId });
   [connectedInGame, players].forEach(list => {
     list.forEach(p => {
       p.selectedBy = (p.selectedBy || []).filter(id => id !== selectorId);
@@ -291,6 +315,14 @@ function setSelectionMode(active) {
   document.getElementById('startNightBtn').classList.toggle('hidden', active);
   document.getElementById('showRoleBtn').classList.toggle('hidden', active);
   document.getElementById('selectBtn').classList.toggle('hidden', !active);
+  if (active) updateSelectBtnStyle();
+}
+
+function updateSelectBtnStyle() {
+  const btn = document.getElementById('selectBtn');
+  if (!btn) return;
+  btn.classList.toggle('btn-ghost',     !myConfirmed);
+  btn.classList.toggle('btn-confirmed',  myConfirmed);
 }
 
 // ─── Render game grid ─────────────────────────────────────────────────────────
@@ -314,14 +346,21 @@ function renderGameGrid() {
 
 // Dispatcher central — ajouter un case ici pour chaque nouvel état
 function applyState(state) {
-  myState = state === 'wake' ? null : state;
+  myState = (state === 'wake' || state === 'reset') ? null : state;
   switch (state) {
     case 'sleep':
       enterSleep();
       break;
     case 'select':
+      myConfirmed = false;
       exitSleep();
       setSelectionMode(true);
+      break;
+    case 'reset':
+      myConfirmed = false;
+      mySelection = null;
+      setSelectionMode(false);
+      exitSleep();
       break;
     case 'dead':
       document.getElementById('startNightBtn').disabled = true;

@@ -8,8 +8,10 @@ const MSG = Object.freeze({
   GAME_END:      'game_end',      // host → all:   game is over, back to waiting room
   PLAYER_STATE:  'player_state',  // host → client: { state } — état d'un joueur ('sleep', 'wake', …)
   START_NIGHT:   'start_night',   // client → host: demande de lancer la nuit
-  AVATARS:       'avatars',       // host → client: { avatars: { peerId: imageDataUrl } }
-  SELECTION:     'selection',     // client → host: { selector: peerId, targetId: peerId|null }
+  AVATARS:            'avatars',            // host → client: { avatars: { peerId: imageDataUrl } }
+  SELECTION:          'selection',          // client → host: { targetId: peerId|null } — live badge update
+  CONFIRM_SELECTION:  'confirm_selection',  // client → host: { targetId: peerId|null } — confirme la sélection
+  CANCEL_SELECTION:   'cancel_selection',   // client → host: annule la confirmation
 });
 
 // Retire les images des objets joueurs avant envoi réseau.
@@ -63,38 +65,43 @@ function initHost() {
 }
 
 function onHostReceive(conn, msg) {
-  if (msg.type === MSG.START_NIGHT) { setPlayerWantNight(conn.peer, msg.value); return; }
-  if (msg.type === MSG.SELECTION)   { onSelectionReceived(conn.peer, msg.targetId); return; }
-  if (msg.type !== MSG.JOIN) return;
-
-  connections[conn.peer] = conn;
-
-  if (gameActive) {
-    // Reconnexion pendant la partie — renvoyer le rôle et mettre à jour la liste connectée
-    const assignment = roleAssignments.find(a => a.id === conn.peer);
-    if (assignment) {
-      conn.send({ type: MSG.GAME_START, role: assignment.role, players: _stripImages(connectedInGame) });
-      _sendAvatars(conn, connectedInGame);
-      const player = crystallizedPlayers.find(p => p.id === conn.peer);
-      if (player && !connectedInGame.find(p => p.id === conn.peer)) {
-        connectedInGame.push(player);
-        renderGameGrid();
-        syncConnectedPlayers();
+  switch (msg.type) {
+    case MSG.START_NIGHT:         setPlayerWantNight(conn.peer, msg.value); break;
+    case MSG.SELECTION:           onSelectionReceived(conn.peer, msg.targetId); break;
+    case MSG.CONFIRM_SELECTION:   onConfirmSelectionReceived(conn.peer, msg.targetId); break;
+    case MSG.CANCEL_SELECTION:    onCancelSelectionReceived(conn.peer); break;
+    case MSG.JOIN:
+      connections[conn.peer] = conn;
+    
+      if (gameActive) {
+        // Reconnexion pendant la partie — renvoyer le rôle et mettre à jour la liste connectée
+        const assignment = roleAssignments.find(a => a.id === conn.peer);
+        if (assignment) {
+          conn.send({ type: MSG.GAME_START, role: assignment.role, players: _stripImages(connectedInGame) });
+          _sendAvatars(conn, connectedInGame);
+          const player = crystallizedPlayers.find(p => p.id === conn.peer);
+          if (player && !connectedInGame.find(p => p.id === conn.peer)) {
+            connectedInGame.push(player);
+            renderGameGrid();
+            syncConnectedPlayers();
+          }
+        }
+        return;
       }
-    }
-    return;
-  }
-
-  playerRemove(conn.peer);
-  playerAdd(buildPlayer(conn.peer, resolveUsername(msg.username), msg.image, false));
-  renderAll();
-  syncAll();
-  // Envoyer tous les avatars au nouveau client, et son avatar à tous les autres
-  _sendAvatars(conn, players);
-  if (msg.image) {
-    for (const [pid, c] of Object.entries(connections)) {
-      if (pid !== conn.peer) c.send({ type: MSG.AVATARS, avatars: { [conn.peer]: msg.image } });
-    }
+    
+      playerRemove(conn.peer);
+      playerAdd(buildPlayer(conn.peer, resolveUsername(msg.username), msg.image, false));
+      renderAll();
+      syncAll();
+      // Envoyer tous les avatars au nouveau client, et son avatar à tous les autres
+      _sendAvatars(conn, players);
+      if (msg.image) {
+        for (const [pid, c] of Object.entries(connections)) {
+          if (pid !== conn.peer) c.send({ type: MSG.AVATARS, avatars: { [conn.peer]: msg.image } });
+        }
+      }
+      break;
+    default: break;
   }
 }
 
@@ -190,6 +197,7 @@ function onClientReceive(msg) {
         const me = connectedInGame.find(p => p.id === peer?.id);
         if (me) updateNightBtn(me.wantStartNight ?? false);
         if (msg.round != null) updateRoundDisplay(msg.round);
+        if (msg.isNight != null) setNightUIMode(msg.isNight);
       } else {
         renderAll(msg.players);
         setStatus('waiting');
