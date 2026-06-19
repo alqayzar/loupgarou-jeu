@@ -187,7 +187,8 @@ function updateNightBtn(active) {
 
 // ─── Sync connected players → all clients ──────────────────────────────────── mort
 function syncConnectedPlayers() {
-  const msg = { type: MSG.SYNC, players: connectedInGame, round };
+  const stripped = connectedInGame.map(({ image: _, ...p }) => p);
+  const msg = { type: MSG.SYNC, players: stripped, round };
   for (const conn of Object.values(connections)) conn.send(msg);
 }
 

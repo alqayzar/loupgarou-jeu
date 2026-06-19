@@ -160,7 +160,10 @@ function onClientReceive(msg) {
   switch (msg.type) {
     case MSG.SYNC:
       if (gameActive) {
-        connectedInGame = msg.players;
+        connectedInGame = msg.players.map(p => {
+          const cached = connectedInGame.find(c => c.id === p.id);
+          return { image: cached?.image ?? null, ...p };
+        });
         renderGameGrid();
         const me = connectedInGame.find(p => p.id === peer?.id);
         if (me) updateNightBtn(me.wantStartNight ?? false);
