@@ -9,6 +9,7 @@ const MSG = Object.freeze({
   PLAYER_STATE:  'player_state',  // host → client: { state } — état d'un joueur ('sleep', 'wake', …)
   START_NIGHT:   'start_night',   // client → host: demande de lancer la nuit
   AVATARS:       'avatars',       // host → client: { avatars: { peerId: imageDataUrl } }
+  SELECTION:     'selection',     // client → host: { selector: peerId, targetId: peerId|null }
 });
 
 // Retire les images des objets joueurs avant envoi réseau.
@@ -63,6 +64,7 @@ function initHost() {
 
 function onHostReceive(conn, msg) {
   if (msg.type === MSG.START_NIGHT) { setPlayerWantNight(conn.peer, msg.value); return; }
+  if (msg.type === MSG.SELECTION)   { onSelectionReceived(conn.peer, msg.targetId); return; }
   if (msg.type !== MSG.JOIN) return;
 
   connections[conn.peer] = conn;

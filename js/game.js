@@ -3,6 +3,7 @@ let gameActive          = false;
 let round               = 0;     // numéro de la nuit en cours (0 = partie non commencée)
 let myState             = null;   // état courant du joueur local
 let myRole              = null;
+let mySelection         = null;  // peerId de la carte sélectionnée par le joueur local
 let crystallizedPlayers = [];   // host: liste complète figée au lancement
 let roleAssignments     = [];   // host: [{ id, role }]
 let connectedInGame     = [];   // in-memory: joueurs actuellement connectés en jeu
@@ -51,6 +52,9 @@ function startNightFlow() {
   updateRoundDisplay(round);
   syncConnectedPlayers();
   runFlow([
+    States.wait(5),
+    States.select(null),
+    States.wait(10000000),
     States.say('La nuit tombe sur le village…'),
     States.sleep(),
     States.wait(2),
@@ -97,7 +101,7 @@ async function endGame() {
   const { gameActive: _a, crystallizedPlayers: _b, roleAssignments: _c, myRole: _d, ...rest } = session;
   await dbSet('game_session', rest);
 
-  players             = crystallizedPlayers.map(({ dead: _, wantStartNight: __, ...p }) => p);
+  players             = crystallizedPlayers.map(({ dead: _, wantStartNight: __, selectedBy: ___, ...p }) => p);
   gameActive          = false;
   myRole              = null;
   crystallizedPlayers = [];
@@ -240,6 +244,8 @@ function exitGameMode() {
   cancelFlow();
   exitSleep();
   round = 0;
+  mySelection = null;
+  setSelectionMode(false);
   document.getElementById('gameView').style.display = 'none';
   document.getElementById('gameControls').classList.add('hidden');
   document.body.classList.remove('has-game-controls');
@@ -254,12 +260,46 @@ function exitGameMode() {
   }
 }
 
+// ─── Selection mode ───────────────────────────────────────────────────────────
+function handleCardSelect(targetId) {
+  if (myState !== 'select') return;
+  const newTarget = mySelection === targetId ? null : targetId;
+  mySelection = newTarget;
+  // setSelectionMode(newTarget !== null);
+  if (role === 'host') {
+    onSelectionReceived('host', newTarget);
+  } else {
+    hostConn.send({ type: MSG.SELECTION, targetId: newTarget });
+  }
+}
+
+function onSelectionReceived(selectorId, targetId) {
+  [connectedInGame, players].forEach(list => {
+    list.forEach(p => {
+      p.selectedBy = (p.selectedBy || []).filter(id => id !== selectorId);
+    });
+    if (targetId) {
+      const p = list.find(p => p.id === targetId);
+      if (p) p.selectedBy = [...(p.selectedBy || []), selectorId];
+    }
+  });
+  renderGameGrid();
+  syncConnectedPlayers();
+}
+
+function setSelectionMode(active) {
+  document.getElementById('startNightBtn').classList.toggle('hidden', active);
+  document.getElementById('showRoleBtn').classList.toggle('hidden', active);
+  document.getElementById('selectBtn').classList.toggle('hidden', !active);
+}
+
 // ─── Render game grid ─────────────────────────────────────────────────────────
 function renderGameGrid() {
+  const myId = role === 'host' ? 'host' : peer?.id;
   renderPlayersGrid(
     document.getElementById('gamePlayersGrid'),
     connectedInGame,
-    { canKick: false }
+    { canKick: false, onSelect: handleCardSelect, myId }
   );
   const x = connectedInGame.length;
   if (role === 'host') {
@@ -276,9 +316,14 @@ function renderGameGrid() {
 function applyState(state) {
   myState = state === 'wake' ? null : state;
   switch (state) {
-    case 'sleep': enterSleep(); break;
+    case 'sleep':
+      enterSleep();
+      break;
+    case 'select':
+      exitSleep();
+      setSelectionMode(true);
+      break;
     case 'dead':
-      // exitSleep();
       document.getElementById('startNightBtn').disabled = true;
       break;
     default: exitSleep(); break;

@@ -7,15 +7,30 @@
  *   renderPlayersGrid(containerEl, players, options)
  *
  * options: {
- *   canKick: boolean          — show kick button on non-host cards
- *   onKick:  (peerId) => void — callback when kick is clicked
+ *   canKick:  boolean          — show kick button on non-host cards
+ *   onKick:   (peerId) => void — callback when kick is clicked
+ *   onSelect: (peerId) => void — callback when a living card is clicked
+ *   myId:     string           — local player's peerId (used for selection highlight)
  * }
  */
 
-function createPlayerCard(player, { canKick = false, onKick = null } = {}) {
+function createPlayerCard(player, { canKick = false, onKick = null, onSelect = null, myId = null } = {}) {
+  const isDead     = player.dead != null;
+  const isSelected = myId && (player.selectedBy || []).includes(myId);
+
   const card = document.createElement('div');
   card.id = `player-${player.id}`;
-  card.className = `player-card ${player.colorClass}${player.dead != null ? ' player-dead' : ''}`;
+  card.className = [
+    'player-card',
+    player.colorClass,
+    isDead       ? 'player-dead'    : '',
+    isSelected   ? 'selected-by-me' : '',
+  ].filter(Boolean).join(' ');
+
+  if (onSelect && !isDead) {
+    card.classList.add('selectable');
+    card.addEventListener('click', () => onSelect(player.id));
+  }
 
   if (player.isHost) {
     const badge = document.createElement('div');
@@ -31,7 +46,7 @@ function createPlayerCard(player, { canKick = false, onKick = null } = {}) {
     card.appendChild(nightBadge);
   }
 
-  if (player.dead != null) {
+  if (isDead) {
     const skull = document.createElement('div');
     skull.className = 'dead-skull';
     skull.textContent = '💀';
@@ -65,6 +80,32 @@ function createPlayerCard(player, { canKick = false, onKick = null } = {}) {
 
   card.appendChild(avatar);
   card.appendChild(name);
+
+  // Badges des joueurs ayant sélectionné cette carte
+  const selectors = player.selectedBy || [];
+  if (selectors.length) {
+    const badges = document.createElement('div');
+    badges.className = 'selection-badges';
+    selectors.forEach(selectorId => {
+      const badge = document.createElement('div');
+      badge.className = 'selection-badge';
+      const inGame = typeof connectedInGame !== 'undefined'
+        ? connectedInGame.find(p => p.id === selectorId)
+        : null;
+      const img = inGame?.image
+        ?? (typeof avatarCache !== 'undefined' ? avatarCache[selectorId] : null);
+      if (img) {
+        const imgEl = document.createElement('img');
+        imgEl.src = img;
+        badge.appendChild(imgEl);
+      } else {
+        badge.textContent = '?';
+      }
+      badges.appendChild(badge);
+    });
+    card.appendChild(badges);
+  }
+
   return card;
 }
 

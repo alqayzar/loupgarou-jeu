@@ -62,6 +62,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (e.target === e.currentTarget) closeRoleModal();
   });
   document.getElementById('sleepWakeBtn').addEventListener('click', () => setStateForAll('wake'));
+  document.getElementById('selectBtn').addEventListener('click', () => {
+    if (mySelection) handleCardSelect(mySelection); // re-clic = désélectionne → sort du mode
+  });
   document.getElementById('startNightBtn').addEventListener('click', () => {
     if (role === 'host') {
       const me = connectedInGame.find(p => p.id === 'host');
@@ -103,7 +106,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 function buildPlayer(id, username, image, isHost) {
   const colorClass = COLOR_CLASSES[colorCounter % COLOR_CLASSES.length];
   colorCounter++;
-  return { id, username, image: image || null, isHost, colorClass, dead: null, wantStartNight: false };
+  return { id, username, image: image || null, isHost, colorClass, dead: null, wantStartNight: false, selectedBy: [] };
 }
 
 function playerAdd(player)  { players.push(player); }

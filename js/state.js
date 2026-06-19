@@ -20,6 +20,7 @@ const States = Object.freeze({
   // Utile pour des paramètres dynamiques connus seulement pendant le déroulé du jeu.
   run:    (fn)                  => ({ type: 'run',    fn }),
   kill:   (peerId)              => ({ type: 'kill',   peerId }),
+  select: (role)                => ({ type: 'select', role }),
 });
 
 // ─── Flow runner ──────────────────────────────────────────────────────────────
@@ -64,6 +65,9 @@ async function _executeStep(step, labels) {
     case 'kill':
       killPlayer(step.peerId);
       break;
+    case 'select':
+      _selectRole(step.role);
+      break;
   }
 }
 
@@ -79,6 +83,16 @@ function _wakeRole(roleId) {
   const targets = roleAssignments.filter(a => a.role === roleId);
   for (const { id } of targets) {
     setStateForPlayer(id, 'wake');
+  }
+}
+
+// Met en mode sélection les joueurs possédant le rôle spécifié.
+// Si roleId est null, tout le monde passe en mode sélection.
+function _selectRole(roleId) {
+  if (!roleId) { setStateForAll('select'); return; }
+  const targets = roleAssignments.filter(a => a.role === roleId);
+  for (const { id } of targets) {
+    setStateForPlayer(id, 'select');
   }
 }
 
