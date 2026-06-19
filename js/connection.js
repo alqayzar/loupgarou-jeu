@@ -4,11 +4,24 @@ const MSG = Object.freeze({
   SYNC:       'sync',        // host → all:   { players }  (full list, on every change)
   HOST_CLOSE: 'host_close',  // host → all:   room is closing
   KICK:       'kick',        // host → client: you have been removed
-  GAME_START:    'game_start',    // host → client: { role }
+  GAME_START:    'game_start',    // host → client: { role, players }
   GAME_END:      'game_end',      // host → all:   game is over, back to waiting room
   PLAYER_STATE:  'player_state',  // host → client: { state } — état d'un joueur ('sleep', 'wake', …)
   START_NIGHT:   'start_night',   // client → host: demande de lancer la nuit
+  AVATARS:       'avatars',       // host → client: { avatars: { peerId: imageDataUrl } }
 });
+
+// Retire les images des objets joueurs avant envoi réseau.
+function _stripImages(playerList) {
+  return playerList.map(({ image: _, ...p }) => p);
+}
+
+// Envoie les avatars d'une liste de joueurs à une connexion.
+function _sendAvatars(conn, playerList) {
+  const avatars = {};
+  playerList.forEach(p => { if (p.image) avatars[p.id] = p.image; });
+  if (Object.keys(avatars).length) conn.send({ type: MSG.AVATARS, avatars });
+}
 
 // ─── Connection state ────────────────────────────────────────────────────────
 let peer           = null;  // PeerJS instance
@@ -25,6 +38,7 @@ function initHost() {
     if (!players.find(p => p.isHost)) {
       playerAdd(buildPlayer('host', profile.username, profile.image, true));
     }
+    if (profile.image) cacheAvatars({ host: profile.image });
     renderAll();
     setStatus('waiting');
   });
@@ -57,7 +71,8 @@ function onHostReceive(conn, msg) {
     // Reconnexion pendant la partie — renvoyer le rôle et mettre à jour la liste connectée
     const assignment = roleAssignments.find(a => a.id === conn.peer);
     if (assignment) {
-      conn.send({ type: MSG.GAME_START, role: assignment.role, players: connectedInGame });
+      conn.send({ type: MSG.GAME_START, role: assignment.role, players: _stripImages(connectedInGame) });
+      _sendAvatars(conn, connectedInGame);
       const player = crystallizedPlayers.find(p => p.id === conn.peer);
       if (player && !connectedInGame.find(p => p.id === conn.peer)) {
         connectedInGame.push(player);
@@ -72,6 +87,13 @@ function onHostReceive(conn, msg) {
   playerAdd(buildPlayer(conn.peer, resolveUsername(msg.username), msg.image, false));
   renderAll();
   syncAll();
+  // Envoyer tous les avatars au nouveau client, et son avatar à tous les autres
+  _sendAvatars(conn, players);
+  if (msg.image) {
+    for (const [pid, c] of Object.entries(connections)) {
+      if (pid !== conn.peer) c.send({ type: MSG.AVATARS, avatars: { [conn.peer]: msg.image } });
+    }
+  }
 }
 
 function onClientDisconnect(peerId) {
@@ -87,9 +109,9 @@ function onClientDisconnect(peerId) {
   syncAll();
 }
 
-// Envoie la liste complète des joueurs à tous les clients connectés.
+// Envoie la liste complète des joueurs à tous les clients connectés (sans images).
 function syncAll() {
-  const msg = { type: MSG.SYNC, players };
+  const msg = { type: MSG.SYNC, players: _stripImages(players) };
   for (const conn of Object.values(connections)) conn.send(msg);
   updatePlayerCount();
 }
@@ -102,6 +124,7 @@ function initClient(savedPeerId) {
   peer.on('open', async (id) => {
     const session = await dbGet('game_session');
     await dbSet('game_session', { ...session, myPeerId: id });
+    if (profile.image) cacheAvatars({ [id]: profile.image });
     connectToHost();
   });
 
@@ -160,10 +183,7 @@ function onClientReceive(msg) {
   switch (msg.type) {
     case MSG.SYNC:
       if (gameActive) {
-        connectedInGame = msg.players.map(p => {
-          const cached = connectedInGame.find(c => c.id === p.id);
-          return { image: cached?.image ?? null, ...p };
-        });
+        connectedInGame = msg.players;
         renderGameGrid();
         const me = connectedInGame.find(p => p.id === peer?.id);
         if (me) updateNightBtn(me.wantStartNight ?? false);
@@ -179,6 +199,10 @@ function onClientReceive(msg) {
     case MSG.GAME_END:
       onGameEnd();
       setStatus('waiting');
+      break;
+    case MSG.AVATARS:
+      cacheAvatars(msg.avatars);
+      if (gameActive) renderGameGrid(); else renderAll();
       break;
     case MSG.PLAYER_STATE:
       applyState(msg.state);

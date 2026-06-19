@@ -10,6 +10,12 @@ let roomId       = null;  // host's peer ID (= room code in URL hash)
 let profile      = null;  // { username, image }
 let players      = [];    // ordered list — host is authoritative, clients mirror it
 let colorCounter = 0;     // host only — next colour index to assign
+let avatarCache  = {};    // peerId → image data URL (persisté en IndexedDB)
+
+function cacheAvatars(map) {
+  Object.assign(avatarCache, map);
+  dbSet('avatar_cache', avatarCache);
+}
 
 // ─── Initialisation ──────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
@@ -18,6 +24,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const session = await dbGet('game_session');
   profile = (await dbGet('user_profile')) || { username: 'Joueur', image: null };
+  avatarCache = (await dbGet('avatar_cache')) || {};
+  // Toujours avoir sa propre image en cache sous l'id 'host' ou l'id peer (ajouté au peer open)
+  if (profile.image) avatarCache['__self__'] = profile.image;
 
   if (!session || session.roomId !== roomId) {
     window.location.replace(`index.html?join=${roomId}`);

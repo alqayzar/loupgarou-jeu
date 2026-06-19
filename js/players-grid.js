@@ -49,9 +49,10 @@ function createPlayerCard(player, { canKick = false, onKick = null } = {}) {
 
   const avatar = document.createElement('div');
   avatar.className = 'player-avatar';
-  if (player.image) {
+  const imgSrc = player.image ?? (typeof avatarCache !== 'undefined' ? avatarCache[player.id] : null);
+  if (imgSrc) {
     const img = document.createElement('img');
-    img.src = player.image;
+    img.src = imgSrc;
     img.alt = player.username;
     avatar.appendChild(img);
   } else {

@@ -34,7 +34,8 @@ async function startGame() {
 
   for (const [peerId, conn] of Object.entries(connections)) {
     const a = roleAssignments.find(a => a.id === peerId);
-    conn.send({ type: MSG.GAME_START, role: a?.role || 'villageois', players: connectedInGame });
+    conn.send({ type: MSG.GAME_START, role: a?.role || 'villageois', players: _stripImages(connectedInGame) });
+    _sendAvatars(conn, connectedInGame);
   }
 
   enterGameMode();
@@ -187,8 +188,7 @@ function updateNightBtn(active) {
 
 // ─── Sync connected players → all clients ──────────────────────────────────── mort
 function syncConnectedPlayers() {
-  const stripped = connectedInGame.map(({ image: _, ...p }) => p);
-  const msg = { type: MSG.SYNC, players: stripped, round };
+  const msg = { type: MSG.SYNC, players: _stripImages(connectedInGame), round };
   for (const conn of Object.values(connections)) conn.send(msg);
 }
 
