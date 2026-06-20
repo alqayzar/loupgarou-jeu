@@ -29,8 +29,8 @@ function getRoundDeaths() {
 function wolfFlow() {
   return [
     States.label("begin_wolf_vote"),
+    // States.wake('loupgarou'),
     States.say("Loup garou, ouvrez les yeux !"),
-    States.say('Selectionner votre victime !'),
     States.select('loupgarou', 'Selectionner une victime !', '🐺 Désigner'),
     States.on('confirm_selection_all', (targets) => {
       const victim = getMajority(targets);
@@ -38,14 +38,14 @@ function wolfFlow() {
         ? [States.kill(victim)]
         : [States.jump("begin_wolf_vote")];
     }),
-    States.say("Loups garous fermez les yeux !"),
+    States.say("Loups garous, fermez les yeux !"),
     States.sleep(),
   ];
 }
 
 function witchFlow() {
   return [
-    States.wake('sorciere'),
+    // States.wake('sorciere'),
     States.say("Sorcière, ouvrez les yeux !"),
     States.run(() => {
       const witch  = roleAssignments.find(a => a.role === 'sorciere');
@@ -55,7 +55,10 @@ function witchFlow() {
         States.say('Voulez-vous sauver ce joueur ?'),
         States.choice('sorciere', `Voulez-vous sauver ${deaths[0].username} ?`, ['💊 Sauver', 'Non']),
         States.on('choice', ({ choiceIndex }) => {
-          if (choiceIndex === 0) { witch.saveUsed++; return [States.revive(deaths[0].id)]; }
+          if (choiceIndex === 0) {
+            witch.saveUsed++;
+            return [States.revive(deaths[0].id)];
+          }
           return [];
         }),
       ];
@@ -98,25 +101,52 @@ function seerFlow() {
   ];
 }
 
+function _formatVoteDuration(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  if (m === 0) return `Vous avez ${s} seconde${s > 1 ? 's' : ''} pour voter.`;
+  if (s === 0) return `Vous avez ${m} minute${m > 1 ? 's' : ''} pour voter.`;
+  return `Vous avez ${m} minute${m > 1 ? 's' : ''} et ${s} seconde${s > 1 ? 's' : ''} pour voter.`;
+}
+
 function villageVoteFlow() {
   return [
     States.label('begin_village_vote'),
-    States.say('Le village doit voter pour éliminer un suspect.'),
-    States.select('alive', 'Votez pour éliminer un suspect.', '🗳️ Voter'),
-    States.on('confirm_selection_all', (targets) => {
+
+    States.run(() => scenarioSettings.voteTimeoutEnabled
+      ? [States.say('Le village doit voter pour éliminer un suspect. ' + _formatVoteDuration(scenarioSettings.voteTimeoutSeconds))]
+      : [States.say('Le village doit voter pour éliminer un suspect.')]),
+
+    States.select('alive', 'Votez pour éliminer un suspect.', '🗳️ Voter', scenarioSettings.allowBlankVote),
+
+    States.run(() => scenarioSettings.voteTimeoutEnabled
+      ? [States.timeout('village_vote', scenarioSettings.voteTimeoutSeconds * 1000, States.GLOBAL)]
+      : []),
+    
+    States.many_on({
+      'timeout:village_vote': () => [
+        States.reset(),
+        States.say("Le village n'a pas voté dans le temps imparti, aucun joueur n'est éliminé !"),
+      ],
+      'confirm_selection_all': (targets) => {
       const victim = getMajority(targets);
       if (!victim) return [
+        States.clearTimeout('village_vote'),
         States.say('Un vote majoritaire est requis !'),
-        States.jump('begin_village_vote')
+        States.jump('begin_village_vote'),
+      ];
+      if (victim === 'none') return [
+        States.say("Le village a voté blanc. Personne n'est éliminé."),
       ];
       const player     = connectedInGame.find(p => p.id === victim);
       const assignment = roleAssignments.find(a => a.id === victim);
       const role       = assignment?.role || 'inconnu';
       return [
+        States.clearTimeout('village_vote'),
         States.say(`${player?.username || 'Un joueur'} est éliminé par le village ! Ce joueur était ${role}.`),
         States.kill(victim),
       ];
-    }),
+    }}),
   ];
 }
 
@@ -130,13 +160,13 @@ function checkWinFlow() {
       if (wolves.length === 0) {
         return [
           States.say('Les villageois ont gagné ! Tous les loups garous sont morts !'),
-          States.end(),
+          States.reveal('villageois'),
         ];
       }
       if (wolves.length >= villagers.length) {
         return [
           States.say('Les loups garous ont gagné ! Ils sont maintenant majoritaires !'),
-          States.end(),
+          States.reveal('loupgarou'),
         ];
       }
       return [];
@@ -151,6 +181,25 @@ function announceDeathsFlow() {
       if (deaths.length === 0) return [States.say("Cette nuit, personne n'est mort.")];
       return deaths.map(p => States.say(`${p.username} a été tué cette nuit.`));
     }),
+  ];
+}
+
+function testTimeoutFlow() {
+  return [
+    States.wait(3),
+    States.timeout('hello', 20_000, States.GLOBAL),
+    States.select(null, 'Selectionner qqchose', 'Bouton'),
+    States.many_on({
+      'timeout:hello' : () => [
+        States.say("Vous n'avez pas voter à temps, c'est problématique !"),
+      ],
+      'confirm_selection_all' : () => [
+        States.clearTimeout('hello'),
+        States.say("Bien joué vous avez vôté à temps !"),
+      ],
+    }),
+    States.reset(),
+    States.on('timeout:hello', () => [States.say("TIMEOUT !")]),
   ];
 }
 

@@ -14,6 +14,9 @@ const MSG = Object.freeze({
   CANCEL_SELECTION:   'cancel_selection',   // client → host: annule la confirmation
   CHOICE:             'choice',             // client → host: { choiceIndex } — réponse à un States.choice
   SET_VAR:            'set_var',            // host → clients: { key, value } — variable globale
+  TIMEOUT_START:      'timeout_start',      // host → clients: { ms } — démarre le timer global
+  TIMEOUT_CLEAR:      'timeout_clear',      // host → clients: cache le timer
+  REVEAL:             'reveal',             // host → clients: { team, assignments } — mode récapitulatif
 });
 
 // Retire les images des objets joueurs avant envoi réseau.
@@ -230,6 +233,15 @@ function onClientReceive(msg) {
       break;
     case MSG.SET_VAR:
       _setVar(msg.key, msg.value);
+      break;
+    case MSG.TIMEOUT_START:
+      showCountdownTimer(msg.ms);
+      break;
+    case MSG.TIMEOUT_CLEAR:
+      hideCountdownTimer();
+      break;
+    case MSG.REVEAL:
+      applyReveal(msg.team, msg.assignments);
       break;
   }
 }

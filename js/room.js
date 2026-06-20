@@ -72,13 +72,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         hostConn.send({ type: MSG.CANCEL_SELECTION });
       }
     } else {
-      if (!mySelection) return;
+      if (!mySelection && !myAllowNone) return;
       myConfirmed = true;
       updateSelectBtnStyle();
+      const targetId = mySelection ?? 'none';
       if (role === 'host') {
-        onConfirmSelectionReceived('host', mySelection);
+        onConfirmSelectionReceived('host', targetId);
       } else {
-        hostConn.send({ type: MSG.CONFIRM_SELECTION, targetId: mySelection });
+        hostConn.send({ type: MSG.CONFIRM_SELECTION, targetId });
       }
     }
   });
@@ -211,9 +212,45 @@ function initSettings() {
     if (e.target === e.currentTarget) closeSettings();
   });
 
-  bindCollapsible('rolesToggle', 'rolesContent', 'rolesToggleIcon');
-  bindCollapsible('hostToggle',  'hostContent',  'hostToggleIcon');
-  bindCollapsible('voiceToggle', 'voiceContent', 'voiceToggleIcon');
+  bindCollapsible('rolesToggle',    'rolesContent',    'rolesToggleIcon');
+  bindCollapsible('scenarioToggle', 'scenarioContent', 'scenarioToggleIcon');
+  bindCollapsible('hostToggle',     'hostContent',     'hostToggleIcon');
+  bindCollapsible('voiceToggle',    'voiceContent',    'voiceToggleIcon');
+
+  const allowBlankVoteCheck = document.getElementById('allowBlankVoteCheck');
+  allowBlankVoteCheck.checked = scenarioSettings.allowBlankVote;
+  allowBlankVoteCheck.addEventListener('change', () => {
+    scenarioSettings.allowBlankVote = allowBlankVoteCheck.checked;
+    saveRoleSettings();
+  });
+
+  const voteTimeoutCheck = document.getElementById('voteTimeoutCheck');
+  const voteTimeoutField = document.getElementById('voteTimeoutField');
+  const voteTimeoutInput = document.getElementById('voteTimeoutInput');
+
+  function updateVoteTimeoutField() {
+    voteTimeoutField.classList.toggle('hidden', !scenarioSettings.voteTimeoutEnabled);
+  }
+
+  voteTimeoutCheck.checked = scenarioSettings.voteTimeoutEnabled;
+  voteTimeoutInput.value   = scenarioSettings.voteTimeoutSeconds;
+  updateVoteTimeoutField();
+
+  voteTimeoutCheck.addEventListener('change', () => {
+    scenarioSettings.voteTimeoutEnabled = voteTimeoutCheck.checked;
+    updateVoteTimeoutField();
+    saveRoleSettings();
+  });
+
+  voteTimeoutInput.addEventListener('change', () => {
+    const v = parseInt(voteTimeoutInput.value);
+    if (!isNaN(v) && v >= 10) {
+      scenarioSettings.voteTimeoutSeconds = v;
+      saveRoleSettings();
+    } else {
+      voteTimeoutInput.value = scenarioSettings.voteTimeoutSeconds;
+    }
+  });
 
   const hostSpectatorCheck = document.getElementById('hostSpectatorCheck');
   hostSpectatorCheck.checked = hostSpectator;

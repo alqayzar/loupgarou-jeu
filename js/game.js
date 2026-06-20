@@ -3,11 +3,14 @@ let gameActive          = false;
 let round               = 0;     // numéro de la nuit en cours (0 = partie non commencée)
 let myState             = null;   // état courant du joueur local
 let myRole              = null;
-let mySelection         = null;  // peerId de la carte sélectionnée par le joueur local
-let myConfirmed         = false; // true si le joueur local a confirmé sa sélection
+let mySelection         = null;   // peerId de la carte sélectionnée par le joueur local
+let myConfirmed         = false;  // true si le joueur local a confirmé sa sélection
+let myAllowNone         = false;  // true si la sélection en cours autorise le vote blanc
 let crystallizedPlayers = [];   // host: liste complète figée au lancement
 let roleAssignments     = [];   // host: [{ id, role }]
 let connectedInGame     = [];   // in-memory: joueurs actuellement connectés en jeu
+let revealTeam          = null; // équipe mise en avant en mode récapitulatif ('loupgarou' | 'villageois' | null)
+let revealAssignments   = [];   // assignments reçus via States.reveal
 
 // ─── Start game (host) ───────────────────────────────────────────────────────
 async function startGame() {
@@ -68,6 +71,8 @@ async function endGame() {
   crystallizedPlayers = [];
   roleAssignments     = [];
   connectedInGame     = [];
+  revealTeam          = null;
+  revealAssignments   = [];
 
   exitGameMode();
   renderAll();
@@ -179,6 +184,41 @@ function setNightUIMode(active) {
   document.getElementById('showRoleBtn').classList.toggle('hidden', active);
 }
 
+// ─── Countdown timer ──────────────────────────────────────────────────────────
+let _countdownRaf = null;
+let _countdownEnd = null;
+
+function showCountdownTimer(ms) {
+  hideCountdownTimer();
+  _countdownEnd = Date.now() + ms;
+  const el      = document.getElementById('countdownTimer');
+  const display = document.getElementById('countdownDisplay');
+  el.classList.remove('hidden');
+
+  function tick() {
+    const remaining = Math.max(0, _countdownEnd - Date.now());
+    const m   = Math.floor(remaining / 60000);
+    const s   = Math.floor((remaining % 60000) / 1000);
+    const ms_ = remaining % 1000;
+    display.textContent =
+      String(m).padStart(2, '0') + ':' +
+      String(s).padStart(2, '0') + ':' +
+      String(ms_).padStart(3, '0');
+    if (remaining > 0) {
+      _countdownRaf = requestAnimationFrame(tick);
+    } else {
+      hideCountdownTimer();
+    }
+  }
+  _countdownRaf = requestAnimationFrame(tick);
+}
+
+function hideCountdownTimer() {
+  if (_countdownRaf) { cancelAnimationFrame(_countdownRaf); _countdownRaf = null; }
+  _countdownEnd = null;
+  document.getElementById('countdownTimer')?.classList.add('hidden');
+}
+
 function saveRound() {
   dbGet('game_session').then(s => { if (s) dbSet('game_session', { ...s, round }); });
 }
@@ -239,6 +279,8 @@ function exitGameMode() {
   round = 0;
   mySelection = null;
   myConfirmed = false;
+  revealTeam        = null;
+  revealAssignments = [];
   setSelectionMode(false);
   setChoiceMode(false);
   document.getElementById('gameView').style.display = 'none';
@@ -289,7 +331,8 @@ function clearAllSelections() {
   syncConnectedPlayers();
 }
 
-function setSelectionMode(active, label, buttonText) {
+function setSelectionMode(active, label, buttonText, allowNone = false) {
+  myAllowNone = active ? allowNone : false;
   document.getElementById('selectBtnWrapper').classList.toggle('hidden', !active);
   if (active) {
     document.getElementById('selectLabel').textContent = label || '';
@@ -332,6 +375,13 @@ function onChoiceClick(choiceIndex) {
   }
 }
 
+// ─── Reveal mode ─────────────────────────────────────────────────────────────
+function applyReveal(team, assignments) {
+  revealTeam        = team;
+  revealAssignments = assignments;
+  renderGameGrid();
+}
+
 // ─── Render game grid ─────────────────────────────────────────────────────────
 function renderGameGrid() {
   const myId          = role === 'host' ? 'host' : peer?.id;
@@ -342,7 +392,7 @@ function renderGameGrid() {
   renderPlayersGrid(
     document.getElementById('gamePlayersGrid'),
     connectedInGame,
-    { canKick: false, onSelect: handleCardSelect, myId, showSelectionBadges: myState === 'select', nightKilledRound, canSeeKilledTonight }
+    { canKick: false, onSelect: handleCardSelect, myId, showSelectionBadges: myState === 'select', nightKilledRound, canSeeKilledTonight, revealTeam, revealAssignments }
   );
   const x = connectedInGame.length;
   if (role === 'host') {
@@ -380,7 +430,7 @@ function applyState(state, extra = {}) {
     case 'select':
       myConfirmed = false;
       exitSleep();
-      setSelectionMode(true, extra.label, extra.buttonText);
+      setSelectionMode(true, extra.label, extra.buttonText, extra.allowNone);
       setNightUIMode(true);
       break;
     case 'choice':

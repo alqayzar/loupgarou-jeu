@@ -14,10 +14,15 @@
  * }
  */
 
-function createPlayerCard(player, { canKick = false, onKick = null, onSelect = null, myId = null, showSelectionBadges = false, nightKilledRound = null, canSeeKilledTonight = false } = {}) {
-  const killedTonight = nightKilledRound != null && player.dead === nightKilledRound;
-  const isDead        = player.dead != null && !killedTonight;
-  const isSelected    = myId && (player.selectedBy || []).includes(myId);
+function createPlayerCard(player, { canKick = false, onKick = null, onSelect = null, myId = null, showSelectionBadges = false, nightKilledRound = null, canSeeKilledTonight = false, revealTeam = null, revealAssignments = [] } = {}) {
+  const killedTonight    = nightKilledRound != null && player.dead === nightKilledRound;
+  const isDead           = player.dead != null && !killedTonight;
+  const isSelected       = myId && (player.selectedBy || []).includes(myId);
+  const revealAssignment = revealAssignments.find(a => a.id === player.id);
+  const revealRoleData   = revealAssignment && typeof ROLES !== 'undefined' ? ROLES.find(r => r.id === revealAssignment.role) : null;
+  const isRevealTeam     = revealAssignment && (
+    revealTeam === 'loupgarou' ? revealAssignment.role === 'loupgarou' : revealAssignment.role !== 'loupgarou'
+  );
 
   const card = document.createElement('div');
   card.id = `player-${player.id}`;
@@ -34,6 +39,34 @@ function createPlayerCard(player, { canKick = false, onKick = null, onSelect = n
     card.addEventListener('click', () => onSelect(player.id));
   }
 
+  // Avatar et nom en premier — les badges viennent après et s'affichent par-dessus
+  const avatar = document.createElement('div');
+  avatar.className = 'player-avatar' + (revealRoleData ? ' has-reveal-badge' : '');
+  const imgSrc = player.image ?? (typeof avatarCache !== 'undefined' ? avatarCache[player.id] : null);
+  if (imgSrc) {
+    const img = document.createElement('img');
+    img.src = imgSrc;
+    img.alt = player.username;
+    avatar.appendChild(img);
+  } else {
+    avatar.textContent = '👤';
+  }
+
+  if (revealRoleData) {
+    const roleBadge = document.createElement('div');
+    roleBadge.className = 'reveal-role-badge';
+    roleBadge.textContent = revealRoleData.emoji || '?';
+    avatar.appendChild(roleBadge);
+  }
+
+  const name = document.createElement('div');
+  name.className = 'player-name';
+  name.textContent = player.username;
+
+  card.appendChild(avatar);
+  card.appendChild(name);
+
+  // Badges positionnés par-dessus l'avatar
   if (player.isHost) {
     const badge = document.createElement('div');
     badge.className = 'host-badge';
@@ -62,6 +95,13 @@ function createPlayerCard(player, { canKick = false, onKick = null, onSelect = n
     card.appendChild(badge);
   }
 
+  if (isRevealTeam) {
+    const crown = document.createElement('div');
+    crown.className = 'reveal-crown';
+    crown.textContent = '👑';
+    card.appendChild(crown);
+  }
+
   if (canKick && !player.isHost && onKick) {
     const kickBtn = document.createElement('button');
     kickBtn.className = 'kick-btn';
@@ -70,25 +110,6 @@ function createPlayerCard(player, { canKick = false, onKick = null, onSelect = n
     kickBtn.addEventListener('click', (e) => { e.stopPropagation(); onKick(player.id); });
     card.appendChild(kickBtn);
   }
-
-  const avatar = document.createElement('div');
-  avatar.className = 'player-avatar';
-  const imgSrc = player.image ?? (typeof avatarCache !== 'undefined' ? avatarCache[player.id] : null);
-  if (imgSrc) {
-    const img = document.createElement('img');
-    img.src = imgSrc;
-    img.alt = player.username;
-    avatar.appendChild(img);
-  } else {
-    avatar.textContent = '👤';
-  }
-
-  const name = document.createElement('div');
-  name.className = 'player-name';
-  name.textContent = player.username;
-
-  card.appendChild(avatar);
-  card.appendChild(name);
 
   // Badges des joueurs ayant sélectionné cette carte
   const selectors = showSelectionBadges ? (player.selectedBy || []) : [];

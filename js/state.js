@@ -16,6 +16,23 @@ async function loadVars() {
   if (saved) Object.assign(_vars, saved);
 }
 
+// ─── Timeout registry ────────────────────────────────────────────────────────
+const _pendingTimeouts = {};  // name → timeoutId
+let _globalTimeoutName = null;
+
+function _clearTimeout(name) {
+  if (_pendingTimeouts[name] != null) {
+    clearTimeout(_pendingTimeouts[name]);
+    delete _pendingTimeouts[name];
+  }
+}
+
+function _broadcastTimeoutClear() {
+  const msg = { type: MSG.TIMEOUT_CLEAR };
+  for (const conn of Object.values(connections)) conn.send(msg);
+  hideCountdownTimer();
+}
+
 // ─── Event registry ───────────────────────────────────────────────────────────
 const _pendingEvents = {};
 
@@ -87,12 +104,17 @@ const States = Object.freeze({
   run:          (fn)               => ({ type: 'run',    fn }),
   kill:         (peerId)           => ({ type: 'kill',   peerId }),
   revive:       (peerId)           => ({ type: 'revive', peerId }),
-  select:       (role, label, buttonText) => ({ type: 'select', role, label, buttonText }),
+  select:       (role, label, buttonText, allowNone = false) => ({ type: 'select', role, label, buttonText, allowNone }),
   // Bloque le flow jusqu'à triggerEvent(name, data). handler(data) peut retourner des steps.
   on:           (name, handler)    => ({ type: 'on',     name, handler }),
   reset:        ()                 => ({ type: 'reset' }),
   choice:       (role, label, choices) => ({ type: 'choice', role, label, choices }),
   end:          ()                 => ({ type: 'end' }),
+  timeout:      (name, ms, scope = 'local') => ({ type: 'timeout',      name, ms, scope }),
+  clearTimeout: (name)                      => ({ type: 'clearTimeout', name }),
+  many_on:      (handlers)        => ({ type: 'many_on',      handlers }),
+  conditional:  (condition, ifSteps, elseSteps = []) => ({ type: 'conditional', condition, ifSteps, elseSteps }),
+  reveal:       (team) => ({ type: 'reveal', team }),
   triggerEvent,
 });
 
@@ -120,9 +142,10 @@ async function runFlow(steps) {
 
 function cancelFlow() {
   _flowCancelled = true;
-  for (const resolve of Object.values(_pendingEvents)) {
-    resolve({ cancelled: true });
-  }
+  if (_globalTimeoutName) { _broadcastTimeoutClear(); _globalTimeoutName = null; }
+  for (const id of Object.values(_pendingTimeouts)) clearTimeout(id);
+  for (const key of Object.keys(_pendingTimeouts)) delete _pendingTimeouts[key];
+  for (const resolve of Object.values(_pendingEvents)) resolve({ cancelled: true });
   for (const key of Object.keys(_pendingEvents)) delete _pendingEvents[key];
   _resetSelectionTracking();
   speechSynthesis.cancel();
@@ -150,6 +173,38 @@ async function _executeStep(step, labels) {
     case 'kill':   killPlayer(step.peerId);   break;
     case 'revive': revivePlayer(step.peerId); break;
     case 'end':    cancelFlow(); endGame();   break;
+    case 'timeout': {
+      if (step.scope === States.GLOBAL) {
+        // Écraser l'ancien timeout global s'il existe
+        if (_globalTimeoutName) {
+          _clearTimeout(_globalTimeoutName);
+          _broadcastTimeoutClear();
+        }
+        _globalTimeoutName = step.name;
+        const startMsg = { type: MSG.TIMEOUT_START, ms: step.ms };
+        for (const conn of Object.values(connections)) conn.send(startMsg);
+        showCountdownTimer(step.ms);
+      }
+      const id = setTimeout(() => {
+        delete _pendingTimeouts[step.name];
+        if (_globalTimeoutName === step.name) {
+          _globalTimeoutName = null;
+          _broadcastTimeoutClear();
+        }
+        triggerEvent('timeout:' + step.name, null);
+      }, step.ms);
+      _pendingTimeouts[step.name] = id;
+      break;  // non-bloquant — le flow continue immédiatement
+    }
+    case 'clearTimeout': {
+      const wasGlobal = _globalTimeoutName === step.name;
+      _clearTimeout(step.name);
+      if (wasGlobal) {
+        _globalTimeoutName = null;
+        _broadcastTimeoutClear();
+      }
+      break;
+    }
     case 'set': {
       await _setVar(step.key, step.value);
       if (step.scope === States.GLOBAL) {
@@ -159,7 +214,7 @@ async function _executeStep(step, labels) {
       break;
     }
     case 'select':
-      _selectRole(step.role, step.label, step.buttonText);
+      _selectRole(step.role, step.label, step.buttonText, step.allowNone);
       break;
     case 'reset':
       setStateForAll('reset');
@@ -174,6 +229,39 @@ async function _executeStep(step, labels) {
       });
       if (!result.cancelled && step.handler) {
         const steps = step.handler(result.data);
+        if (Array.isArray(steps) && steps.length) {
+          const label = await runFlow(steps);
+          if (typeof label === 'string') return (label in labels) ? labels[label] : label;
+        }
+      }
+      break;
+    }
+    case 'reveal': {
+      const msg = { type: MSG.REVEAL, team: step.team, assignments: roleAssignments };
+      for (const conn of Object.values(connections)) conn.send(msg);
+      applyReveal(step.team, roleAssignments);
+      break;
+    }
+    case 'conditional': {
+      const truthy = typeof step.condition === 'function' ? step.condition() : step.condition;
+      const branch = truthy ? step.ifSteps : step.elseSteps;
+      if (branch.length) {
+        const label = await runFlow(branch);
+        if (typeof label === 'string') return (label in labels) ? labels[label] : label;
+      }
+      break;
+    }
+    case 'many_on': {
+      const result = await new Promise(resolve => {
+        for (const [name, handler] of Object.entries(step.handlers)) {
+          _pendingEvents[name] = ({ data, cancelled }) => {
+            for (const n of Object.keys(step.handlers)) delete _pendingEvents[n];
+            resolve({ data, handler, cancelled });
+          };
+        }
+      });
+      if (!result.cancelled && result.handler) {
+        const steps = result.handler(result.data);
         if (Array.isArray(steps) && steps.length) {
           const label = await runFlow(steps);
           if (typeof label === 'string') return (label in labels) ? labels[label] : label;
@@ -210,7 +298,7 @@ function _choiceRole(roleId, label, choices) {
   for (const { id } of targets) setStateForPlayer(id, 'choice', { label, choices });
 }
 
-function _selectRole(roleId, label, buttonText) {
+function _selectRole(roleId, label, buttonText, allowNone = false) {
   _resetSelectionTracking();
   clearAllSelections();
   let targets;
@@ -221,7 +309,7 @@ function _selectRole(roleId, label, buttonText) {
     targets = roleId ? roleAssignments.filter(a => a.role === roleId && pool.some(p => p.id === a.id)) : pool;
   }
   _selectCount = targets.length;
-  for (const { id } of targets) setStateForPlayer(id, 'select', { label, buttonText });
+  for (const { id } of targets) setStateForPlayer(id, 'select', { label, buttonText, allowNone });
 }
 
 // Prononce le texte et attend la fin avant de passer à l'étape suivante.
@@ -239,6 +327,6 @@ function _say(text, voiceParams) {
     utter.onend  = resolve;
     utter.onerror = resolve;  // ne jamais bloquer le flow sur une erreur vocale
     speechSynthesis.cancel();
-    setTimeout(() => speechSynthesis.speak(utter), 100);
+    setTimeout(() => speechSynthesis.speak(utter), 500);
   });
 }

@@ -63,13 +63,18 @@
       margin-bottom: 12px;
     }
 
-    /* Fixed bottom bars */
-    .host-controls,
-    .game-controls {
+    /* Fixed bottom bar — contient timer + contrôles en colonne */
+    .bottom-bar {
       position: fixed;
       bottom: 0;
       left: 0;
       right: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .host-controls,
+    .game-controls {
       padding: 12px 16px;
       background-color: var(--bg-navbar);
       border-top: 1.5px solid var(--border-subtle);
@@ -106,6 +111,22 @@
     .role-reveal-emoji { font-size: 3.5rem; text-align: center; }
     .role-reveal-name  { font-size: 1.3rem; font-weight: 800; color: var(--text-primary); text-align: center; }
     .role-reveal-desc  { font-size: 0.875rem; color: var(--text-secondary); text-align: center; }
+
+    /* Countdown timer — dans .bottom-bar, au-dessus des contrôles */
+    .countdown-timer {
+      display: flex;
+      justify-content: center;
+      padding: 6px 16px;
+      background: var(--bg-navbar);
+      border-top: 1.5px solid var(--border-subtle);
+    }
+    #countdownDisplay {
+      font-variant-numeric: tabular-nums;
+      font-weight: 800;
+      font-size: 1.1rem;
+      letter-spacing: 0.06em;
+      color: var(--color-danger);
+    }
 
     /* Sleep overlay */
     .sleep-overlay {
@@ -177,24 +198,34 @@
 
   </main>
 
-  <!-- Host controls: waiting room only (fixed bottom) -->
-  <div class="host-controls hidden" id="hostControls">
-    <button class="btn btn-ghost" id="settingsBtn">⚙ Paramètres</button>
-    <button class="btn btn-primary flex-1" id="startBtn" disabled>Lancer</button>
-  </div>
+  <!-- Bottom bar — timer + controls empilés en colonne -->
+  <div class="bottom-bar" id="bottomBar">
 
-  <!-- Game controls: game mode only (fixed bottom) -->
-  <div class="game-controls hidden" id="gameControls">
-    <button class="btn btn-ghost hidden flex-1" id="startNightBtn">🌙</button>
-    <button class="btn btn-primary flex-1" id="showRoleBtn">👁 Mon rôle</button>
-    <div id="selectBtnWrapper" class="select-btn-wrapper hidden">
-      <span id="selectLabel" class="select-label"></span>
-      <button class="btn btn-ghost" id="selectBtn">✓ Sélectionner</button>
+    <!-- Countdown timer (masqué par défaut) -->
+    <div class="countdown-timer hidden" id="countdownTimer">
+      <span id="countdownDisplay">00:00:000</span>
     </div>
-    <div id="choiceWrapper" class="choice-wrapper hidden">
-      <span id="choiceLabel" class="select-label"></span>
-      <div id="choiceButtons" class="choice-buttons"></div>
+
+    <!-- Host controls: waiting room only -->
+    <div class="host-controls hidden" id="hostControls">
+      <button class="btn btn-ghost" id="settingsBtn">⚙ Paramètres</button>
+      <button class="btn btn-primary flex-1" id="startBtn" disabled>Lancer</button>
     </div>
+
+    <!-- Game controls: game mode only -->
+    <div class="game-controls hidden" id="gameControls">
+      <button class="btn btn-ghost hidden flex-1" id="startNightBtn">🌙</button>
+      <button class="btn btn-primary flex-1" id="showRoleBtn">👁 Mon rôle</button>
+      <div id="selectBtnWrapper" class="select-btn-wrapper hidden">
+        <span id="selectLabel" class="select-label"></span>
+        <button class="btn btn-ghost" id="selectBtn">✓ Sélectionner</button>
+      </div>
+      <div id="choiceWrapper" class="choice-wrapper hidden">
+        <span id="choiceLabel" class="select-label"></span>
+        <div id="choiceButtons" class="choice-buttons"></div>
+      </div>
+    </div>
+
   </div>
 
   <!-- Settings bottom sheet (host only) -->
@@ -217,6 +248,30 @@
         </div>
       </div>
 
+      <!-- Section : Scénario -->
+      <div class="settings-section">
+        <button class="section-toggle" id="scenarioToggle">
+          <span>Scénario</span>
+          <span class="section-toggle-icon rotated" id="scenarioToggleIcon">▼</span>
+        </button>
+        <div class="section-content" id="scenarioContent">
+          <label class="settings-checkbox-row">
+            <input type="checkbox" id="allowBlankVoteCheck" />
+            <span>Vote blanc autorisé <small>(vote du village)</small></span>
+          </label>
+          <label class="settings-checkbox-row">
+            <input type="checkbox" id="voteTimeoutCheck" />
+            <span>Limiter le vote du village dans le temps</span>
+          </label>
+          <div class="settings-field" id="voteTimeoutField">
+            <div class="settings-field-header">
+              <span>Durée du vote (secondes)</span>
+            </div>
+            <input type="number" class="input" id="voteTimeoutInput" min="10" max="3600" step="1" value="120">
+          </div>
+        </div>
+      </div>
+
       <!-- Section : Hôte -->
       <div class="settings-section">
         <button class="section-toggle" id="hostToggle">
@@ -234,7 +289,7 @@
       <!-- Section : Voix -->
       <div class="settings-section">
         <button class="section-toggle" id="voiceToggle">
-          <span>Voix démo</span>
+          <span>Voix</span>
           <span class="section-toggle-icon rotated" id="voiceToggleIcon">▼</span>
         </button>
         <div class="section-content" id="voiceContent">
@@ -300,6 +355,11 @@
         <button class="btn btn-cyan flex-1" id="copyLinkBtn">Copier le lien</button>
       </div>
     </div>
+  </div>
+
+  <!-- Countdown timer -->
+  <div class="countdown-timer hidden" id="countdownTimer">
+    <span id="countdownDisplay">00:00:000</span>
   </div>
 
   <!-- Sleep overlay -->

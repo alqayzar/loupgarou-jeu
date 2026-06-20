@@ -28,6 +28,12 @@ const ROLES = [
 
 let hostSpectator = false;
 
+const scenarioSettings = {
+  allowBlankVote:       false,
+  voteTimeoutEnabled:   false,
+  voteTimeoutSeconds:   120,
+};
+
 // Nombre de joueurs effectivement jouables (exclut le host s'il est spectateur)
 function playableCount() {
   return Math.max(0, players.length - (hostSpectator ? 1 : 0));
@@ -87,7 +93,7 @@ function changeRoleCount(id, delta) {
 
 function saveRoleSettings() {
   const state = ROLES.map(r => ({ id: r.id, enabled: r.enabled, count: r.count }));
-  dbSet('role_settings', { roles: state, hostSpectator });
+  dbSet('role_settings', { roles: state, hostSpectator, scenarioSettings: { ...scenarioSettings } });
 }
 
 async function loadRoleSettings() {
@@ -101,6 +107,7 @@ async function loadRoleSettings() {
     if (r.countable && count != null) r.count = count;
   });
   if (saved.hostSpectator != null) hostSpectator = saved.hostSpectator;
+  if (saved.scenarioSettings) Object.assign(scenarioSettings, saved.scenarioSettings);
 }
 
 function assignRoles(playerList) {
