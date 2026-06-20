@@ -36,6 +36,12 @@ function say(text, overrides = {}) {
 
 function setVoiceConfig(partial) {
   Object.assign(voiceConfig, partial);
+  dbSet('voice_config', { ...voiceConfig });
+}
+
+async function loadVoiceConfig() {
+  const saved = await dbGet('voice_config');
+  if (saved) Object.assign(voiceConfig, saved);
 }
 
 function getVoiceConfig() {

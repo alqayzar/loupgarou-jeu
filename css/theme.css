@@ -197,6 +197,38 @@ input, button, textarea { font-family: inherit; }
 }
 .btn-ghost:hover { border-color: var(--color-primary); color: var(--text-primary); }
 
+.select-btn-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.choice-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.choice-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.choice-buttons .btn {
+  flex: 1;
+}
+
+.select-label {
+  font-size: 1rem;
+  color: var(--text-muted);
+  text-align: center;
+  min-height: 1em;
+}
+
 .btn-confirmed {
   background-color: transparent;
   color: var(--color-success);
@@ -458,6 +490,18 @@ input, button, textarea { font-family: inherit; }
   align-items: center;
   justify-content: center;
   font-size: 2.2rem;
+  z-index: 1;
+}
+
+.player-card.player-killed-tonight {
+  box-shadow: 0 0 0 2px var(--color-danger);
+}
+
+.killed-tonight-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 1rem;
   z-index: 1;
 }
 

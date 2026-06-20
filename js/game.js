@@ -11,9 +11,13 @@ let connectedInGame     = [];   // in-memory: joueurs actuellement connectés en
 
 // ─── Start game (host) ───────────────────────────────────────────────────────
 async function startGame() {
+  resetVars();
+  await loadVars();
   crystallizedPlayers = [...players];
   roleAssignments     = assignRoles(crystallizedPlayers);
   myRole              = roleAssignments.find(a => a.id === 'host')?.role || 'villageois';
+  const witchRole = roleAssignments.find(a => a.role === 'sorciere');
+  if (witchRole) { witchRole.saveUsed = 0; witchRole.poisonUsed = 0; }
   gameActive          = true;
   connectedInGame     = [...crystallizedPlayers];
 
@@ -48,72 +52,14 @@ function updateRoundDisplay(r) {
   if (el) el.textContent = r > 0 ? `Nuit ${r}` : '';
 }
 
-async function startNightFlow() {
-  round++;
-  updateRoundDisplay(round);
-  setNightUIMode(true);
-  syncConnectedPlayers(true);
-
-  let all_confirmed = false;
-
-  await runFlow([
-    // States.wait(5),
-    States.say("Veuillez séléctionner"),
-    States.label("redo selection"),
-    States.select(null),
-    States.on("confirm_selection_all", (targets) => {
-      all_confirmed = targets.length > 0 && targets.every(t => t === targets[0]);
-    }),
-    States.reset(),
-    States.jumpif("redo selection", () => !all_confirmed),
-    States.say("On continue maintenant."),
-    States.wait(10000000),
-    States.say('La nuit tombe sur le village…'),
-    States.sleep(),
-    States.wait(2),
-    States.wake('loupgarou'),
-    States.say('Loups Garous, ouvrez les yeux.'),
-    States.wait(4),
-    States.run(() => {
-      const victims = connectedInGame.filter(p => {
-        const a = roleAssignments.find(a => a.id === p.id);
-        return p.dead == null && a?.role !== 'loupgarou';
-      });
-      if (victims.length === 0) return [];
-      const victim = victims[Math.floor(Math.random() * victims.length)];
-      return [States.kill(victim.id)];
-    }),
-    States.say('Loups Garous, fermez les yeux.'),
-    States.sleep(),
-    States.wait(1),
-
-    States.jumpif('apres_sorciere', () => !roleAssignments.some(a => a.role === 'sorciere')),
-    States.wake('sorciere'),
-    States.say('Sorcière, ouvrez les yeux.'),
-    States.wait(4),
-    States.say('Sorcière, fermez les yeux.'),
-    States.sleep(),
-    States.wait(1),
-    States.label('apres_sorciere'),
-
-    States.say('Le jour se lève.'),
-    States.wake(null),
-    States.run(() => {
-      const morts = connectedInGame.filter(p => p.dead === round);
-      if (morts.length === 0) return [States.say('Cette nuit, personne n\'est mort.')];
-      return morts.map(p => States.say(`${p.username} est mort.`));
-    }),
-  ]);
-  setNightUIMode(false);
-  syncConnectedPlayers(false);
-}
-
 // ─── End game (host) ─────────────────────────────────────────────────────────
 async function endGame() {
+  gameActive = false;
+  resetVars();
   for (const conn of Object.values(connections)) conn.send({ type: MSG.GAME_END });
 
   const session = await dbGet('game_session');
-  const { gameActive: _a, crystallizedPlayers: _b, roleAssignments: _c, myRole: _d, ...rest } = session;
+  const { gameActive: _a, crystallizedPlayers: _b, roleAssignments: _c, myRole: _d, myState: _e, myStateExtra: _f, ...rest } = session;
   await dbSet('game_session', rest);
 
   players             = crystallizedPlayers.map(({ dead: _, wantStartNight: __, selectedBy: ___, ...p }) => p);
@@ -137,13 +83,17 @@ async function onGameStart(msg) {
   const session = await dbGet('game_session');
   await dbSet('game_session', { ...session, gameActive: true, myRole });
 
+  const savedState = session?.myState || null;
+  const savedExtra = session?.myStateExtra || {};
   enterGameMode();
+  if (savedState) applyState(savedState, savedExtra);
 }
 
 // ─── Game end received (guest) ────────────────────────────────────────────────
 async function onGameEnd() {
+  resetVars();
   const session = await dbGet('game_session');
-  const { gameActive: _a, myRole: _b, ...rest } = session;
+  const { gameActive: _a, myRole: _b, myState: _c, myStateExtra: _d, ...rest } = session;
   await dbSet('game_session', rest);
 
   gameActive      = false;
@@ -163,6 +113,17 @@ function onPlayerDisconnectedDuringGame(peerId) {
   if (!isDead) {
     showToast(`⚠ ${player?.username || 'Un joueur'} s'est déconnecté — la partie ne peut pas continuer`);
   }
+}
+
+// ─── Revive a player (host) — annule le meurtre de cette nuit ────────────────
+function revivePlayer(peerId) {
+  const inGame = connectedInGame.find(p => p.id === peerId);
+  if (inGame) inGame.dead = null;
+  const inPlayers = players.find(p => p.id === peerId);
+  if (inPlayers) inPlayers.dead = null;
+  setStateForPlayer(peerId, 'sleep', { revived: true });
+  renderGameGrid();
+  syncConnectedPlayers();
 }
 
 // ─── Kill a player (host) ────────────────────────────────────────────────────
@@ -218,25 +179,35 @@ function setNightUIMode(active) {
   document.getElementById('showRoleBtn').classList.toggle('hidden', active);
 }
 
+function saveRound() {
+  dbGet('game_session').then(s => { if (s) dbSet('game_session', { ...s, round }); });
+}
+
 // ─── Restore on reload (host) ────────────────────────────────────────────────
 async function restoreGameStateHost(session) {
   crystallizedPlayers = session.crystallizedPlayers || [];
   roleAssignments     = session.roleAssignments     || [];
   myRole              = session.myRole              || null;
+  round               = session.round               || 0;
   gameActive          = true;
   players             = [...crystallizedPlayers];
   connectedInGame     = crystallizedPlayers.filter(p => p.isHost);
   const hostPlayer    = crystallizedPlayers.find(p => p.isHost);
   if (hostPlayer?.dead != null) myState = 'dead';
   enterGameMode();
+  updateRoundDisplay(round);
 }
 
 // ─── Restore on reload (guest) ───────────────────────────────────────────────
 function restoreGameStateClient(session) {
-  myRole          = session.myRole || null;
+  myRole          = session.myRole  || null;
+  myState         = session.myState || null;
+  round           = session.round   || 0;
   gameActive      = true;
   connectedInGame = [];
   enterGameMode();
+  updateRoundDisplay(round);
+  if (session.myState) applyState(session.myState, session.myStateExtra || {});
 }
 
 // ─── Enter game mode ─────────────────────────────────────────────────────────
@@ -269,6 +240,7 @@ function exitGameMode() {
   mySelection = null;
   myConfirmed = false;
   setSelectionMode(false);
+  setChoiceMode(false);
   document.getElementById('gameView').style.display = 'none';
   document.getElementById('gameControls').classList.add('hidden');
   document.body.classList.remove('has-game-controls');
@@ -311,27 +283,67 @@ function onSelectionReceived(selectorId, targetId) {
   syncConnectedPlayers();
 }
 
-function setSelectionMode(active) {
-  document.getElementById('startNightBtn').classList.toggle('hidden', active);
-  document.getElementById('showRoleBtn').classList.toggle('hidden', active);
-  document.getElementById('selectBtn').classList.toggle('hidden', !active);
-  if (active) updateSelectBtnStyle();
+function clearAllSelections() {
+  [connectedInGame, players].forEach(list => list.forEach(p => { p.selectedBy = []; }));
+  renderGameGrid();
+  syncConnectedPlayers();
+}
+
+function setSelectionMode(active, label, buttonText) {
+  document.getElementById('selectBtnWrapper').classList.toggle('hidden', !active);
+  if (active) {
+    document.getElementById('selectLabel').textContent = label || '';
+    document.getElementById('selectBtn').textContent = buttonText || '✓ Sélectionner';
+    updateSelectBtnStyle();
+  }
 }
 
 function updateSelectBtnStyle() {
   const btn = document.getElementById('selectBtn');
   if (!btn) return;
   btn.classList.toggle('btn-ghost',     !myConfirmed);
-  btn.classList.toggle('btn-confirmed',  myConfirmed);
+  btn.classList.toggle('btn-primary',  myConfirmed);
+}
+
+function setChoiceMode(active, label, choices) {
+  // document.getElementById('startNightBtn').classList.toggle('hidden', active);
+  // document.getElementById('showRoleBtn').classList.toggle('hidden', active);
+  document.getElementById('choiceWrapper').classList.toggle('hidden', !active);
+  if (active) {
+    document.getElementById('choiceLabel').textContent = label || '';
+    const container = document.getElementById('choiceButtons');
+    container.innerHTML = '';
+    (choices || []).forEach((text, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-ghost';
+      btn.textContent = text;
+      btn.addEventListener('click', () => onChoiceClick(i));
+      container.appendChild(btn);
+    });
+  }
+}
+
+function onChoiceClick(choiceIndex) {
+  setChoiceMode(false);
+  if (role === 'host') {
+    onChoiceReceived('host', choiceIndex);
+  } else {
+    hostConn.send({ type: MSG.CHOICE, choiceIndex });
+  }
 }
 
 // ─── Render game grid ─────────────────────────────────────────────────────────
 function renderGameGrid() {
-  const myId = role === 'host' ? 'host' : peer?.id;
+  const myId          = role === 'host' ? 'host' : peer?.id;
+  const isNight       = States.get('night') ?? false;
+  const nightKilledRound    = isNight ? round : null;
+  const witchAssignment     = myRole === 'sorciere' ? roleAssignments.find(a => a.id === myId) : null;
+  console.log("HELLO: ", witchAssignment?.saveUsed);
+  const canSeeKilledTonight = (myRole === 'sorciere' && witchAssignment?.saveUsed === 0);
   renderPlayersGrid(
     document.getElementById('gamePlayersGrid'),
     connectedInGame,
-    { canKick: false, onSelect: handleCardSelect, myId }
+    { canKick: false, onSelect: handleCardSelect, myId, showSelectionBadges: myState === 'select', nightKilledRound, canSeeKilledTonight }
   );
   const x = connectedInGame.length;
   if (role === 'host') {
@@ -345,21 +357,42 @@ function renderGameGrid() {
 // ─── Player state system ─────────────────────────────────────────────────────
 
 // Dispatcher central — ajouter un case ici pour chaque nouvel état
-function applyState(state) {
+function applyState(state, extra = {}) {
   myState = (state === 'wake' || state === 'reset') ? null : state;
+  if (gameActive) {
+    dbGet('game_session').then(s => {
+      if (s) dbSet('game_session', { ...s, myState, myStateExtra: extra });
+    });
+  }
+
+  myConfirmed = false;
+  mySelection = null;
+  setSelectionMode(false);
+  setChoiceMode(false);
+
   switch (state) {
+    case 'wake':
+      exitSleep();
+      break;
     case 'sleep':
+      if (extra.revived) document.getElementById('startNightBtn').disabled = false;
       enterSleep();
       break;
     case 'select':
       myConfirmed = false;
       exitSleep();
-      setSelectionMode(true);
+      setSelectionMode(true, extra.label, extra.buttonText);
+      setNightUIMode(true);
+      break;
+    case 'choice':
+      exitSleep();
+      setChoiceMode(true, extra.label, extra.choices);
       break;
     case 'reset':
       myConfirmed = false;
       mySelection = null;
       setSelectionMode(false);
+      setChoiceMode(false);
       exitSleep();
       break;
     case 'dead':
@@ -382,18 +415,18 @@ function exitSleep() {
 }
 
 // Envoie un état à tous les joueurs (y compris le host lui-même)
-function setStateForAll(state) {
-  const msg = { type: MSG.PLAYER_STATE, state };
+function setStateForAll(state, extra = {}) {
+  const msg = { type: MSG.PLAYER_STATE, state, ...extra };
   for (const conn of Object.values(connections)) conn.send(msg);
-  applyState(state);
+  applyState(state, extra);
 }
 
 // Envoie un état à un joueur précis (peerId = 'host' pour le host lui-même)
-function setStateForPlayer(peerId, state) {
+function setStateForPlayer(peerId, state, extra = {}) {
   if (peerId === 'host') {
-    applyState(state);
+    applyState(state, extra);
   } else {
-    connections[peerId]?.send({ type: MSG.PLAYER_STATE, state });
+    connections[peerId]?.send({ type: MSG.PLAYER_STATE, state, ...extra });
   }
 }
 

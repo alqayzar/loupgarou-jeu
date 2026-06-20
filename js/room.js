@@ -103,6 +103,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('startBtn').addEventListener('click', startGame);
     document.getElementById('endGameBtn').addEventListener('click', endGame);
     await loadRoleSettings();
+    await loadVoiceConfig();
     initSettings();
 
     if (session.gameActive) {
@@ -196,7 +197,9 @@ function closeShareModal() {
   document.getElementById('shareModal').classList.add('hidden');
 }
 
-function goHome() {
+async function goHome() {
+  avatarCache = {};
+  await dbDel('avatar_cache');
   window.location.href = 'index.html';
 }
 
@@ -269,6 +272,8 @@ function initVoiceSection() {
   select.addEventListener('change', () => setVoiceConfig({ voiceURI: select.value || null }));
 
   function bindRange(el, labelEl, key) {
+    const cfg = getVoiceConfig();
+    if (cfg[key] != null) { el.value = cfg[key]; labelEl.textContent = cfg[key].toFixed(1); }
     el.addEventListener('input', () => {
       const v = parseFloat(el.value);
       labelEl.textContent = v.toFixed(1);

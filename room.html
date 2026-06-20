@@ -187,7 +187,14 @@
   <div class="game-controls hidden" id="gameControls">
     <button class="btn btn-ghost hidden flex-1" id="startNightBtn">🌙</button>
     <button class="btn btn-primary flex-1" id="showRoleBtn">👁 Mon rôle</button>
-    <button class="btn btn-primary flex-1 hidden" id="selectBtn">✓ Sélectionner</button>
+    <div id="selectBtnWrapper" class="select-btn-wrapper hidden">
+      <span id="selectLabel" class="select-label"></span>
+      <button class="btn btn-ghost" id="selectBtn">✓ Sélectionner</button>
+    </div>
+    <div id="choiceWrapper" class="choice-wrapper hidden">
+      <span id="choiceLabel" class="select-label"></span>
+      <div id="choiceButtons" class="choice-buttons"></div>
+    </div>
   </div>
 
   <!-- Settings bottom sheet (host only) -->
@@ -322,6 +329,7 @@
   <script src="js/connection.js"></script>
   <script src="js/game.js"></script>
   <script src="js/state.js"></script>
+  <script src="js/flow.js"></script>
   <script src="js/room.js"></script>
 
 </body>

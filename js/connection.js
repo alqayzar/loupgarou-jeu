@@ -12,6 +12,8 @@ const MSG = Object.freeze({
   SELECTION:          'selection',          // client → host: { targetId: peerId|null } — live badge update
   CONFIRM_SELECTION:  'confirm_selection',  // client → host: { targetId: peerId|null } — confirme la sélection
   CANCEL_SELECTION:   'cancel_selection',   // client → host: annule la confirmation
+  CHOICE:             'choice',             // client → host: { choiceIndex } — réponse à un States.choice
+  SET_VAR:            'set_var',            // host → clients: { key, value } — variable globale
 });
 
 // Retire les images des objets joueurs avant envoi réseau.
@@ -70,6 +72,7 @@ function onHostReceive(conn, msg) {
     case MSG.SELECTION:           onSelectionReceived(conn.peer, msg.targetId); break;
     case MSG.CONFIRM_SELECTION:   onConfirmSelectionReceived(conn.peer, msg.targetId); break;
     case MSG.CANCEL_SELECTION:    onCancelSelectionReceived(conn.peer); break;
+    case MSG.CHOICE:              onChoiceReceived(conn.peer, msg.choiceIndex); break;
     case MSG.JOIN:
       connections[conn.peer] = conn;
     
@@ -196,7 +199,7 @@ function onClientReceive(msg) {
         renderGameGrid();
         const me = connectedInGame.find(p => p.id === peer?.id);
         if (me) updateNightBtn(me.wantStartNight ?? false);
-        if (msg.round != null) updateRoundDisplay(msg.round);
+        if (msg.round != null) { round = msg.round; updateRoundDisplay(round); saveRound(); }
         if (msg.isNight != null) setNightUIMode(msg.isNight);
       } else {
         renderAll(msg.players);
@@ -215,7 +218,7 @@ function onClientReceive(msg) {
       if (gameActive) renderGameGrid(); else renderAll();
       break;
     case MSG.PLAYER_STATE:
-      applyState(msg.state);
+      applyState(msg.state, msg);
       break;
     case MSG.HOST_CLOSE:
       showToast('La room a été fermée');
@@ -224,6 +227,9 @@ function onClientReceive(msg) {
     case MSG.KICK:
       showToast('Vous avez été exclu de la partie');
       setTimeout(async () => { await dbDel('game_session'); goHome(); }, 1800);
+      break;
+    case MSG.SET_VAR:
+      _setVar(msg.key, msg.value);
       break;
   }
 }

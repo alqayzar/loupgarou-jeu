@@ -1,3 +1,21 @@
+// ─── Variable store ──────────────────────────────────────────────────────────
+const _vars = {};  // in-memory cache — source of truth for States.get()
+
+async function _setVar(key, value) {
+  _vars[key] = value;
+  await dbSet('flow_vars', { ..._vars });
+}
+
+function resetVars() {
+  for (const k of Object.keys(_vars)) delete _vars[k];
+  dbDel('flow_vars');
+}
+
+async function loadVars() {
+  const saved = await dbGet('flow_vars');
+  if (saved) Object.assign(_vars, saved);
+}
+
 // ─── Event registry ───────────────────────────────────────────────────────────
 const _pendingEvents = {};
 
@@ -37,6 +55,10 @@ function onCancelSelectionReceived(selectorId) {
   }
 }
 
+function onChoiceReceived(selectorId, choiceIndex) {
+  triggerEvent('choice', { selectorId, choiceIndex });
+}
+
 // ─── State builders ───────────────────────────────────────────────────────────
 // Utiliser ces helpers pour déclarer les étapes d'un flow :
 //   runFlow([
@@ -49,20 +71,28 @@ function onCancelSelectionReceived(selectorId) {
 //     States.jumpif('debut_nuit', () => roundCount < 3),
 //   ])
 const States = Object.freeze({
+  LOCAL:  'local',
+  GLOBAL: 'global',
+  get:    (key) => _vars[key],
+  set:    (key, value, scope = 'local') => ({ type: 'set', key, value, scope }),
   wait:         (seconds)          => ({ type: 'wait',   seconds }),
   sleep:        ()                 => ({ type: 'sleep' }),
   wake:         (role)             => ({ type: 'wake',   role }),
   say:          (text, voice = {}) => ({ type: 'say',    text, voice }),
   label:        (name)             => ({ type: 'label',  name }),
+  jump:         (name)             => ({ type: 'jump',   name }),
   jumpif:       (name, condition)  => ({ type: 'jumpif', name, condition }),
   // fn est appelée au moment de l'exécution et doit retourner un tableau d'étapes.
   // Utile pour des paramètres dynamiques connus seulement pendant le déroulé du jeu.
   run:          (fn)               => ({ type: 'run',    fn }),
   kill:         (peerId)           => ({ type: 'kill',   peerId }),
-  select:       (role)             => ({ type: 'select', role }),
+  revive:       (peerId)           => ({ type: 'revive', peerId }),
+  select:       (role, label, buttonText) => ({ type: 'select', role, label, buttonText }),
   // Bloque le flow jusqu'à triggerEvent(name, data). handler(data) peut retourner des steps.
   on:           (name, handler)    => ({ type: 'on',     name, handler }),
   reset:        ()                 => ({ type: 'reset' }),
+  choice:       (role, label, choices) => ({ type: 'choice', role, label, choices }),
+  end:          ()                 => ({ type: 'end' }),
   triggerEvent,
 });
 
@@ -83,7 +113,8 @@ async function runFlow(steps) {
   let i = 0;
   while (i < steps.length && !_flowCancelled) {
     const jump = await _executeStep(steps[i], labels);
-    i = (jump !== undefined) ? jump : i + 1;
+    if (typeof jump === 'string') return jump;  // label non trouvé — remonter à l'appelant
+    i = (jump != null) ? jump : i + 1;
   }
 }
 
@@ -102,24 +133,40 @@ function cancelFlow() {
 async function _executeStep(step, labels) {
   switch (step.type) {
     case 'wait':   await _wait(step.seconds);         break;
-    case 'sleep':  setStateForAll('sleep');           break;
+    case 'sleep':  clearAllSelections(); setStateForAll('sleep'); break;
     case 'wake':   _wakeRole(step.role);              break;
     case 'say':    await _say(step.text, step.voice); break;
     case 'label':  /* marqueur, rien à exécuter */    break;
+    case 'jump':
+      return (step.name in labels) ? labels[step.name] : step.name;
     case 'jumpif':
-      if (step.condition()) return labels[step.name];
+      if (step.condition()) return (step.name in labels) ? labels[step.name] : step.name;
       break;
-    case 'run':
-      await runFlow(step.fn());
+    case 'run': {
+      const label = await runFlow(step.fn());
+      if (label) return label;
       break;
-    case 'kill':
-      killPlayer(step.peerId);
+    }
+    case 'kill':   killPlayer(step.peerId);   break;
+    case 'revive': revivePlayer(step.peerId); break;
+    case 'end':    cancelFlow(); endGame();   break;
+    case 'set': {
+      await _setVar(step.key, step.value);
+      if (step.scope === States.GLOBAL) {
+        const msg = { type: MSG.SET_VAR, key: step.key, value: step.value };
+        for (const conn of Object.values(connections)) conn.send(msg);
+      }
       break;
+    }
     case 'select':
-      _selectRole(step.role);
+      _selectRole(step.role, step.label, step.buttonText);
       break;
     case 'reset':
       setStateForAll('reset');
+      clearAllSelections();
+      break;
+    case 'choice':
+      _choiceRole(step.role, step.label, step.choices);
       break;
     case 'on': {
       const result = await new Promise(resolve => {
@@ -127,11 +174,15 @@ async function _executeStep(step, labels) {
       });
       if (!result.cancelled && step.handler) {
         const steps = step.handler(result.data);
-        if (Array.isArray(steps) && steps.length) await runFlow(steps);
+        if (Array.isArray(steps) && steps.length) {
+          const label = await runFlow(steps);
+          if (typeof label === 'string') return (label in labels) ? labels[label] : label;
+        }
       }
       break;
     }
   }
+  return null;
 }
 
 function _wait(seconds) {
@@ -151,14 +202,26 @@ function _wakeRole(roleId) {
 
 // Met en mode sélection les joueurs possédant le rôle spécifié (vivants uniquement).
 // Si roleId est null, tous les joueurs vivants passent en mode sélection.
-function _selectRole(roleId) {
-  _resetSelectionTracking();
-  const alive = connectedInGame.filter(p => p.dead == null);
+function _choiceRole(roleId, label, choices) {
+  const alive = connectedInGame.filter(p => p.dead == null || p.dead === round);
   const targets = roleId
     ? roleAssignments.filter(a => a.role === roleId && alive.some(p => p.id === a.id))
     : alive;
+  for (const { id } of targets) setStateForPlayer(id, 'choice', { label, choices });
+}
+
+function _selectRole(roleId, label, buttonText) {
+  _resetSelectionTracking();
+  clearAllSelections();
+  let targets;
+  if (roleId === 'alive') {
+    targets = connectedInGame.filter(p => p.dead == null);
+  } else {
+    const pool = connectedInGame.filter(p => p.dead == null || p.dead === round);
+    targets = roleId ? roleAssignments.filter(a => a.role === roleId && pool.some(p => p.id === a.id)) : pool;
+  }
   _selectCount = targets.length;
-  for (const { id } of targets) setStateForPlayer(id, 'select');
+  for (const { id } of targets) setStateForPlayer(id, 'select', { label, buttonText });
 }
 
 // Prononce le texte et attend la fin avant de passer à l'étape suivante.
@@ -176,6 +239,6 @@ function _say(text, voiceParams) {
     utter.onend  = resolve;
     utter.onerror = resolve;  // ne jamais bloquer le flow sur une erreur vocale
     speechSynthesis.cancel();
-    speechSynthesis.speak(utter);
+    setTimeout(() => speechSynthesis.speak(utter), 100);
   });
 }

@@ -14,17 +14,19 @@
  * }
  */
 
-function createPlayerCard(player, { canKick = false, onKick = null, onSelect = null, myId = null } = {}) {
-  const isDead     = player.dead != null;
-  const isSelected = myId && (player.selectedBy || []).includes(myId);
+function createPlayerCard(player, { canKick = false, onKick = null, onSelect = null, myId = null, showSelectionBadges = false, nightKilledRound = null, canSeeKilledTonight = false } = {}) {
+  const killedTonight = nightKilledRound != null && player.dead === nightKilledRound;
+  const isDead        = player.dead != null && !killedTonight;
+  const isSelected    = myId && (player.selectedBy || []).includes(myId);
 
   const card = document.createElement('div');
   card.id = `player-${player.id}`;
   card.className = [
     'player-card',
     player.colorClass,
-    isDead       ? 'player-dead'    : '',
-    isSelected   ? 'selected-by-me' : '',
+    isDead                                    ? 'player-dead'           : '',
+    killedTonight && canSeeKilledTonight      ? 'player-killed-tonight' : '',
+    isSelected                                ? 'selected-by-me'        : '',
   ].filter(Boolean).join(' ');
 
   if (onSelect && !isDead) {
@@ -51,6 +53,13 @@ function createPlayerCard(player, { canKick = false, onKick = null, onSelect = n
     skull.className = 'dead-skull';
     skull.textContent = '💀';
     card.appendChild(skull);
+  }
+
+  if (killedTonight && canSeeKilledTonight) {
+    const badge = document.createElement('div');
+    badge.className = 'killed-tonight-badge';
+    badge.textContent = '🩸';
+    card.appendChild(badge);
   }
 
   if (canKick && !player.isHost && onKick) {
@@ -82,7 +91,7 @@ function createPlayerCard(player, { canKick = false, onKick = null, onSelect = n
   card.appendChild(name);
 
   // Badges des joueurs ayant sélectionné cette carte
-  const selectors = player.selectedBy || [];
+  const selectors = showSelectionBadges ? (player.selectedBy || []) : [];
   if (selectors.length) {
     const badges = document.createElement('div');
     badges.className = 'selection-badges';
