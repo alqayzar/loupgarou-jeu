@@ -120,6 +120,7 @@ const States = Object.freeze({
 
 // ─── Flow runner ──────────────────────────────────────────────────────────────
 let _flowCancelled = false;
+let _currentAudio  = null;
 
 async function runFlow(steps) {
   if (!steps || steps.lenght === 0) return;
@@ -148,6 +149,7 @@ function cancelFlow() {
   for (const resolve of Object.values(_pendingEvents)) resolve({ cancelled: true });
   for (const key of Object.keys(_pendingEvents)) delete _pendingEvents[key];
   _resetSelectionTracking();
+  if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
   speechSynthesis.cancel();
 }
 
@@ -313,8 +315,19 @@ function _selectRole(roleId, label, buttonText, allowNone = false) {
 }
 
 // Prononce le texte et attend la fin avant de passer à l'étape suivante.
+// Si le texte commence par '#', lit le fichier audio encodé en data URL après le '#'.
 function _say(text, voiceParams) {
+  if (text && text.startsWith('#')) {
+    return new Promise((resolve) => {
+      speechSynthesis.cancel();
+      _currentAudio = new Audio(text.slice(1));
+      _currentAudio.onended = () => { _currentAudio = null; resolve(); };
+      _currentAudio.onerror = () => { _currentAudio = null; resolve(); };
+      _currentAudio.play().catch(() => { _currentAudio = null; resolve(); });
+    });
+  }
   return new Promise((resolve) => {
+    _currentAudio = null;
     const config = { ...getVoiceConfig(), ...voiceParams };
     const utter  = new SpeechSynthesisUtterance(text);
     utter.pitch  = config.pitch  ?? 1;

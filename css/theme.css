@@ -381,25 +381,25 @@ input, button, textarea { font-family: inherit; }
 .player-color-6 { --player-accent: var(--candy-teal); }
 .player-color-7 { --player-accent: var(--candy-pink); }
 
-.player-avatar {
-  /* width: var(--card-avatar); */
-  /* height: var(--card-avatar); */
+.player-avatar-wrap {
   width: 75%;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.player-avatar {
+  width: 100%;
   aspect-ratio: 1/1;
   border-radius: 50%;
   background-color: var(--bg-surface);
-  border: 2px solid var(--player-accent); /* inherits accent from parent */
+  border: 2px solid var(--player-accent);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.9rem;
   overflow: hidden;
-  flex-shrink: 0;
-  position: relative;
 }
 .player-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.player-avatar.has-reveal-badge { overflow: visible; }
-.player-avatar.has-reveal-badge img { border-radius: 50%; }
 
 .player-name {
   margin-top: auto;
@@ -750,6 +750,68 @@ input, button, textarea { font-family: inherit; }
 .settings-field-value {
   font-weight: 700;
   color: var(--candy-cyan);
+}
+
+.narration-label-wrap {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.narration-btn-group {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.narration-play-btn,
+.narration-upload-btn {
+  padding: 2px 8px;
+  font-size: 0.7rem;
+}
+
+.narration-bulk-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 12px;
+  margin-bottom: 4px;
+  border-bottom: 1.5px solid var(--border-subtle);
+}
+
+.narration-bulk-btn {
+  width: 100%;
+  font-size: 0.75rem;
+  padding: 4px 8px;
+}
+
+.narration-bulk-status {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.narration-upload-active {
+  color: var(--candy-violet);
+}
+
+.narration-playing {
+  color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+.narration-audio-set {
+  color: var(--candy-violet);
+  font-style: italic;
+  opacity: 0.8;
+}
+
+.narration-vars {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--candy-violet);
+  letter-spacing: 0.04em;
 }
 
 .settings-range {

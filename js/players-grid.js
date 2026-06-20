@@ -14,7 +14,7 @@
  * }
  */
 
-function createPlayerCard(player, { canKick = false, onKick = null, onSelect = null, myId = null, showSelectionBadges = false, nightKilledRound = null, canSeeKilledTonight = false, revealTeam = null, revealAssignments = [] } = {}) {
+function createPlayerCard(player, { canKick = false, onKick = null, onSelect = null, myId = null, showSelectionBadges = false, nightKilledRound = null, canSeeKilledTonight = false, revealTeam = null, revealAssignments = [], onHostClick = null } = {}) {
   const killedTonight    = nightKilledRound != null && player.dead === nightKilledRound;
   const isDead           = player.dead != null && !killedTonight;
   const isSelected       = myId && (player.selectedBy || []).includes(myId);
@@ -39,9 +39,17 @@ function createPlayerCard(player, { canKick = false, onKick = null, onSelect = n
     card.addEventListener('click', () => onSelect(player.id));
   }
 
-  // Avatar et nom en premier — les badges viennent après et s'affichent par-dessus
+  if (onHostClick && player.isHost) {
+    card.classList.add('selectable');
+    card.addEventListener('click', () => onHostClick(player.id));
+  }
+
+  // Wrapper pour positionner le badge rôle par-dessus l'avatar sans altérer overflow
+  const avatarWrap = document.createElement('div');
+  avatarWrap.className = 'player-avatar-wrap';
+
   const avatar = document.createElement('div');
-  avatar.className = 'player-avatar' + (revealRoleData ? ' has-reveal-badge' : '');
+  avatar.className = 'player-avatar';
   const imgSrc = player.image ?? (typeof avatarCache !== 'undefined' ? avatarCache[player.id] : null);
   if (imgSrc) {
     const img = document.createElement('img');
@@ -51,19 +59,20 @@ function createPlayerCard(player, { canKick = false, onKick = null, onSelect = n
   } else {
     avatar.textContent = '👤';
   }
+  avatarWrap.appendChild(avatar);
 
   if (revealRoleData) {
     const roleBadge = document.createElement('div');
     roleBadge.className = 'reveal-role-badge';
     roleBadge.textContent = revealRoleData.emoji || '?';
-    avatar.appendChild(roleBadge);
+    avatarWrap.appendChild(roleBadge);
   }
 
   const name = document.createElement('div');
   name.className = 'player-name';
   name.textContent = player.username;
 
-  card.appendChild(avatar);
+  card.appendChild(avatarWrap);
   card.appendChild(name);
 
   // Badges positionnés par-dessus l'avatar
@@ -88,7 +97,7 @@ function createPlayerCard(player, { canKick = false, onKick = null, onSelect = n
     card.appendChild(skull);
   }
 
-  if (killedTonight && canSeeKilledTonight) {
+  if (killedTonight && canSeeKilledTonight && !States.get('night')) {
     const badge = document.createElement('div');
     badge.className = 'killed-tonight-badge';
     badge.textContent = '🩸';

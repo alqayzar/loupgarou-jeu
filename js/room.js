@@ -41,6 +41,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('shareModal').addEventListener('click', (e) => {
     if (e.target === e.currentTarget) closeShareModal();
   });
+  document.getElementById('hostProfileCloseBtn').addEventListener('click', closeHostProfileModal);
+  document.getElementById('hostProfileModal').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeHostProfileModal();
+  });
+  document.getElementById('importHostSettingsBtn').addEventListener('click', () => {
+    const btn = document.getElementById('importHostSettingsBtn');
+    btn.disabled    = true;
+    btn.textContent = 'Chargement…';
+    hostConn.send({ type: MSG.REQUEST_SETTINGS });
+  });
   document.getElementById('copyCodeBtn').addEventListener('click', () => {
     navigator.clipboard?.writeText(roomId)
       .then(() => { showToast('Code copié !'); closeShareModal(); })
@@ -104,6 +114,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('startBtn').addEventListener('click', startGame);
     document.getElementById('endGameBtn').addEventListener('click', endGame);
     await loadRoleSettings();
+    await loadNarrationSettings();
     await loadVoiceConfig();
     initSettings();
 
@@ -142,8 +153,9 @@ function resolveUsername(username) {
 function renderAll(incoming) {
   if (incoming) players = incoming;
   renderPlayersGrid(document.getElementById('playersGrid'), players, {
-    canKick: role === 'host',
-    onKick: kickPlayer
+    canKick:     role === 'host',
+    onKick:      kickPlayer,
+    onHostClick: role === 'client' ? openHostProfileModal : null,
   });
   updatePlayerCount();
 }
@@ -189,6 +201,33 @@ function buildShareUrl() {
   return window.location.href.replace(/room\.html.*$/, `join.html#${roomId}`);
 }
 
+// ─── Host profile modal (client only, wait room) ──────────────────────────────
+function openHostProfileModal() {
+  const btn = document.getElementById('importHostSettingsBtn');
+  btn.disabled = false;
+  btn.textContent = '⬇ Importer les paramètres de l\'hôte';
+  document.getElementById('hostProfileModal').classList.remove('hidden');
+}
+
+function closeHostProfileModal() {
+  document.getElementById('hostProfileModal').classList.add('hidden');
+}
+
+async function applyHostSettings(settings) {
+  if (settings.narration) {
+    Object.assign(narration, settings.narration);
+    await dbSet('narration_settings', settings.narration);
+  }
+  if (settings.voiceConfig) {
+    setVoiceConfig(settings.voiceConfig);
+  }
+  if (settings.roleSettings) {
+    await dbSet('role_settings', settings.roleSettings);
+  }
+  showToast('Paramètres importés !');
+  closeHostProfileModal();
+}
+
 function openShareModal() {
   document.getElementById('shareModal').classList.remove('hidden');
   generateQR(document.getElementById('shareQrCanvas'), buildShareUrl());
@@ -200,7 +239,11 @@ function closeShareModal() {
 
 async function goHome() {
   avatarCache = {};
-  await dbDel('avatar_cache');
+  await Promise.all([
+    dbDel('game_session'),
+    dbDel('flow_vars'),
+    dbDel('avatar_cache'),
+  ]);
   window.location.href = 'index.html';
 }
 
@@ -215,7 +258,9 @@ function initSettings() {
   bindCollapsible('rolesToggle',    'rolesContent',    'rolesToggleIcon');
   bindCollapsible('scenarioToggle', 'scenarioContent', 'scenarioToggleIcon');
   bindCollapsible('hostToggle',     'hostContent',     'hostToggleIcon');
-  bindCollapsible('voiceToggle',    'voiceContent',    'voiceToggleIcon');
+  bindCollapsible('narrationToggle', 'narrationContent', 'narrationToggleIcon');
+  bindCollapsible('voiceToggle',     'voiceContent',     'voiceToggleIcon');
+  initNarrationSection();
 
   const allowBlankVoteCheck = document.getElementById('allowBlankVoteCheck');
   allowBlankVoteCheck.checked = scenarioSettings.allowBlankVote;
@@ -263,6 +308,180 @@ function initSettings() {
 
   renderRoles();
   initVoiceSection();
+}
+
+function initNarrationSection() {
+  const container = document.getElementById('narrationFields');
+  const syncFns   = new Map();
+
+  // ── Zone d'import groupé ──────────────────────────────────────────────────
+  const bulkZone  = document.createElement('div');
+  bulkZone.className = 'narration-bulk-zone';
+
+  const bulkInput = document.createElement('input');
+  bulkInput.type     = 'file';
+  bulkInput.multiple = true;
+  bulkInput.accept   = 'audio/*,video/*';
+  bulkInput.style.display = 'none';
+
+  const bulkBtn = document.createElement('button');
+  bulkBtn.className   = 'btn btn-ghost narration-bulk-btn';
+  bulkBtn.textContent = '📂 Importer des fichiers';
+  bulkBtn.title       = 'Nommer les fichiers comme les clés (ex : "Village - endormissement.mp3")';
+  bulkBtn.addEventListener('click', () => bulkInput.click());
+
+  const bulkStatus = document.createElement('span');
+  bulkStatus.className = 'narration-bulk-status';
+
+  bulkInput.addEventListener('change', async () => {
+    const files = [...bulkInput.files];
+    if (!files.length) return;
+    bulkBtn.disabled     = true;
+    bulkStatus.textContent = `Traitement de ${files.length} fichier(s)…`;
+
+    let matched = 0, skipped = 0;
+    for (const file of files) {
+      const stem = file.name.replace(/\.[^/.]+$/, '');
+      if (!(stem in NARRATION_DEFAULTS)) { skipped++; continue; }
+      const dataURL = await new Promise(r => {
+        const fr = new FileReader();
+        fr.onload = e => r(e.target.result);
+        fr.readAsDataURL(file);
+      });
+      const trimmed = await trimSilence(dataURL);
+      narration[stem] = '#' + trimmed;
+      syncFns.get(stem)?.();
+      matched++;
+    }
+
+    await saveNarrationSettings();
+    bulkStatus.textContent = `${matched} importé(s)${skipped ? `, ${skipped} ignoré(s)` : ''}`;
+    bulkBtn.disabled = false;
+    bulkInput.value  = '';
+    setTimeout(() => { bulkStatus.textContent = ''; }, 4000);
+  });
+
+  bulkZone.appendChild(bulkBtn);
+  bulkZone.appendChild(bulkInput);
+  bulkZone.appendChild(bulkStatus);
+  container.appendChild(bulkZone);
+
+  // ── Champs individuels ────────────────────────────────────────────────────
+  for (const [key, defaultText] of Object.entries(NARRATION_DEFAULTS)) {
+    const field = document.createElement('div');
+    field.className = 'settings-field';
+
+    const header = document.createElement('div');
+    header.className = 'settings-field-header';
+
+    const labelWrap = document.createElement('span');
+    labelWrap.className = 'narration-label-wrap';
+    labelWrap.textContent = key;
+
+    const vars = [...defaultText.matchAll(/\{(\w+)\}/g)].map(m => `{${m[1]}}`);
+    if (vars.length) {
+      const hint = document.createElement('span');
+      hint.className = 'narration-vars';
+      hint.textContent = ' ' + vars.join(' ');
+      labelWrap.appendChild(hint);
+    }
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'input';
+    input.dataset.key = key;
+    input.placeholder = defaultText;
+
+    const playBtn = document.createElement('button');
+    playBtn.className = 'btn btn-ghost narration-play-btn';
+    playBtn.textContent = '▶';
+    playBtn.title = 'Écouter';
+    playBtn.addEventListener('click', async () => {
+      if (playBtn.classList.contains('narration-playing')) return;
+      playBtn.classList.add('narration-playing');
+      try { await _say(narration[key] ?? defaultText); }
+      finally { playBtn.classList.remove('narration-playing'); }
+    });
+
+    const uploadBtn = document.createElement('button');
+    uploadBtn.className = 'btn btn-ghost narration-upload-btn';
+    uploadBtn.textContent = '🎵';
+    uploadBtn.title = 'Uploader un audio';
+
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'audio/*,video/*';
+    fileInput.style.display = 'none';
+
+    function isAudio() { return (narration[key] ?? '').startsWith('#'); }
+
+    function syncDisplay() {
+      if (isAudio()) {
+        input.value    = '#[audio]';
+        input.readOnly = true;
+        input.classList.add('narration-audio-set');
+        uploadBtn.classList.add('narration-upload-active');
+        uploadBtn.title = 'Supprimer l\'audio';
+      } else {
+        input.value    = narration[key] ?? defaultText;
+        input.readOnly = false;
+        input.classList.remove('narration-audio-set');
+        uploadBtn.classList.remove('narration-upload-active');
+        uploadBtn.title = 'Uploader un audio';
+      }
+    }
+
+    syncFns.set(key, syncDisplay);
+    syncDisplay();
+
+    input.addEventListener('change', () => {
+      if (isAudio()) return;
+      narration[key] = input.value.trim() || defaultText;
+      saveNarrationSettings();
+    });
+
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async e => {
+        const trimmed = await trimSilence(e.target.result);
+        narration[key] = '#' + trimmed;
+        saveNarrationSettings();
+        syncDisplay();
+      };
+      reader.readAsDataURL(file);
+      fileInput.value = '';
+    });
+
+    uploadBtn.addEventListener('click', () => {
+      if (isAudio()) {
+        narration[key] = defaultText;
+        saveNarrationSettings();
+        syncDisplay();
+      } else {
+        fileInput.click();
+      }
+    });
+
+    const btnGroup = document.createElement('div');
+    btnGroup.className = 'narration-btn-group';
+    btnGroup.appendChild(playBtn);
+    btnGroup.appendChild(uploadBtn);
+    btnGroup.appendChild(fileInput);
+
+    header.appendChild(labelWrap);
+    header.appendChild(btnGroup);
+
+    field.appendChild(header);
+    field.appendChild(input);
+    container.appendChild(field);
+  }
+
+  document.getElementById('narrationResetBtn').addEventListener('click', () => {
+    resetNarrationSettings();
+    for (const fn of syncFns.values()) fn();
+  });
 }
 
 function bindCollapsible(toggleId, contentId, iconId) {

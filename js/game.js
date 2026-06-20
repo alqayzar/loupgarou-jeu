@@ -19,8 +19,6 @@ async function startGame() {
   crystallizedPlayers = [...players];
   roleAssignments     = assignRoles(crystallizedPlayers);
   myRole              = roleAssignments.find(a => a.id === 'host')?.role || 'villageois';
-  const witchRole = roleAssignments.find(a => a.role === 'sorciere');
-  if (witchRole) { witchRole.saveUsed = 0; witchRole.poisonUsed = 0; }
   gameActive          = true;
   connectedInGame     = [...crystallizedPlayers];
 
@@ -387,8 +385,7 @@ function renderGameGrid() {
   const myId          = role === 'host' ? 'host' : peer?.id;
   const isNight       = States.get('night') ?? false;
   const nightKilledRound    = isNight ? round : null;
-  const witchAssignment     = myRole === 'sorciere' ? roleAssignments.find(a => a.id === myId) : null;
-  const canSeeKilledTonight = (myRole === 'sorciere' && !witchAssignment?.saveUsed);
+  const canSeeKilledTonight = myRole === 'sorciere' && !States.get('sorciere_save_used');
   renderPlayersGrid(
     document.getElementById('gamePlayersGrid'),
     connectedInGame,

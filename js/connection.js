@@ -17,6 +17,8 @@ const MSG = Object.freeze({
   TIMEOUT_START:      'timeout_start',      // host → clients: { ms } — démarre le timer global
   TIMEOUT_CLEAR:      'timeout_clear',      // host → clients: cache le timer
   REVEAL:             'reveal',             // host → clients: { team, assignments } — mode récapitulatif
+  REQUEST_SETTINGS:   'request_settings',   // client → host: demande tous les paramètres
+  SETTINGS_SYNC:      'settings_sync',      // host → client: { narration, voiceConfig, roleSettings }
 });
 
 // Retire les images des objets joueurs avant envoi réseau.
@@ -76,6 +78,16 @@ function onHostReceive(conn, msg) {
     case MSG.CONFIRM_SELECTION:   onConfirmSelectionReceived(conn.peer, msg.targetId); break;
     case MSG.CANCEL_SELECTION:    onCancelSelectionReceived(conn.peer); break;
     case MSG.CHOICE:              onChoiceReceived(conn.peer, msg.choiceIndex); break;
+    case MSG.REQUEST_SETTINGS:
+      (async () => {
+        conn.send({
+          type: MSG.SETTINGS_SYNC,
+          narration:    { ...narration },
+          voiceConfig:  getVoiceConfig(),
+          roleSettings: (await dbGet('role_settings')) || {},
+        });
+      })();
+      break;
     case MSG.JOIN:
       connections[conn.peer] = conn;
     
@@ -229,7 +241,7 @@ function onClientReceive(msg) {
       break;
     case MSG.KICK:
       showToast('Vous avez été exclu de la partie');
-      setTimeout(async () => { await dbDel('game_session'); goHome(); }, 1800);
+      setTimeout(goHome, 1800);
       break;
     case MSG.SET_VAR:
       _setVar(msg.key, msg.value);
@@ -242,6 +254,9 @@ function onClientReceive(msg) {
       break;
     case MSG.REVEAL:
       applyReveal(msg.team, msg.assignments);
+      break;
+    case MSG.SETTINGS_SYNC:
+      applyHostSettings(msg);
       break;
   }
 }
@@ -256,6 +271,5 @@ async function leaveRoom() {
     hostConn?.close();
     peer?.destroy();
   }
-  await dbDel('game_session');
   goHome();
 }
