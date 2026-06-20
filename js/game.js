@@ -338,8 +338,7 @@ function renderGameGrid() {
   const isNight       = States.get('night') ?? false;
   const nightKilledRound    = isNight ? round : null;
   const witchAssignment     = myRole === 'sorciere' ? roleAssignments.find(a => a.id === myId) : null;
-  console.log("HELLO: ", witchAssignment?.saveUsed);
-  const canSeeKilledTonight = (myRole === 'sorciere' && witchAssignment?.saveUsed === 0);
+  const canSeeKilledTonight = (myRole === 'sorciere' && !witchAssignment?.saveUsed);
   renderPlayersGrid(
     document.getElementById('gamePlayersGrid'),
     connectedInGame,
