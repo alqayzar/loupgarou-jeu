@@ -340,6 +340,6 @@ function _say(text, voiceParams) {
     utter.onend  = resolve;
     utter.onerror = resolve;  // ne jamais bloquer le flow sur une erreur vocale
     speechSynthesis.cancel();
-    setTimeout(() => speechSynthesis.speak(utter), 500);
+    setTimeout(() => speechSynthesis.speak(utter), 100);
   });
 }

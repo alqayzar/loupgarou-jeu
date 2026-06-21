@@ -5,8 +5,8 @@
 
 const NARRATION_DEFAULTS = {
   // Nuit — général
-  "Village - endormissement":            "Le village s'endort",
-  "Village - réveil":                    "Le village se réveille",
+  "Village - endormissement":            "Le village s'endort, fermez les yeux",
+  "Village - réveil":                    "Le village se réveille, ouvrez les yeux",
 
   // Loups garous
   "Loups garous - réveil":               "Loup garou, ouvrez les yeux !",
@@ -28,11 +28,11 @@ const NARRATION_DEFAULTS = {
   "Vote - temps écoulé":                 "Le village n'a pas voté dans le temps imparti, aucun joueur n'est éliminé !",
   "Vote - pas de majorité":              "Un vote majoritaire est requis !",
   "Vote - vote blanc":                   "Le village a voté blanc. Personne n'est éliminé.",
-  "Vote - élimination":                  "{username} est éliminé par le village !",
+  "Vote - élimination":                  "est éliminé par le village !",
 
   // Annonces nocturnes
   "Nuit - aucun mort":                   "Cette nuit, personne n'est mort.",
-  "Nuit - joueur tué":                   "{username} a été tué cette nuit.",
+  "Nuit - joueur tué":                   "a été tué cette nuit.",
 
   // Fin de partie
   "Victoire villageois":                 "Les villageois ont gagné ! Tous les loups garous sont morts !",
@@ -69,6 +69,16 @@ function resetNarrationSettings() {
   for (const [k, v] of Object.entries(NARRATION_DEFAULTS)) narration[k] = v;
   saveNarrationSettings();
 }
+
+// S'assure qu'une entrée narration existe pour ce joueur (sans écraser une valeur existante).
+function ensurePlayerNarration(username) {
+  const key = `Joueur - ${username}`;
+  if (narration[key] === undefined) {
+    narration[key] = username;
+    saveNarrationSettings();
+  }
+}
+
 
 // ─── Trim silence ──────────────────────────────────────────────────────────────
 // Retire les plages silencieuses aux deux extrémités d'un audio encodé en data URL.

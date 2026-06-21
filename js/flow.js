@@ -143,7 +143,8 @@ function villageVoteFlow() {
       const role       = assignment?.role || 'inconnu';
       return [
         States.clearTimeout('village_vote'),
-        States.say(narrate('Vote - élimination', { username: player?.username || 'Un joueur' })),
+        States.say(narrate(`Joueur - ${player?.username || 'Un joueur'}`)),
+        States.say(narration['Vote - élimination']),
         States.say(narrate(`Annonce rôle - ${role}`)),
         States.kill(victim),
       ];
@@ -185,7 +186,8 @@ function announceDeathsFlow() {
       return deaths.flatMap(p => {
         const role = roleAssignments.find(a => a.id === p.id)?.role || 'inconnu';
         return [
-          States.say(narrate('Nuit - joueur tué', { username: p.username })),
+          States.say(narrate(`Joueur - ${p.username}`)),
+          States.say(narration['Nuit - joueur tué']),
           States.say(narrate(`Annonce rôle - ${role}`)),
         ];
       });

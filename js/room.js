@@ -158,6 +158,7 @@ function renderAll(incoming) {
     onHostClick: role === 'client' ? openHostProfileModal : null,
   });
   updatePlayerCount();
+  if (role === 'host') renderPlayerNarrations();
 }
 
 function kickPlayer(peerId) {
@@ -310,6 +311,117 @@ function initSettings() {
   initVoiceSection();
 }
 
+// Construit et insère un champ narration (label + play + upload + input) dans container.
+// syncFns : Map optionnelle pour enregistrer la fonction de refresh de l'affichage.
+function _buildNarrationField(container, key, defaultText, syncFns) {
+  const field = document.createElement('div');
+  field.className = 'settings-field';
+
+  const header = document.createElement('div');
+  header.className = 'settings-field-header';
+
+  const labelWrap = document.createElement('span');
+  labelWrap.className = 'narration-label-wrap';
+  labelWrap.textContent = key;
+
+  const vars = [...defaultText.matchAll(/\{(\w+)\}/g)].map(m => `{${m[1]}}`);
+  if (vars.length) {
+    const hint = document.createElement('span');
+    hint.className = 'narration-vars';
+    hint.textContent = ' ' + vars.join(' ');
+    labelWrap.appendChild(hint);
+  }
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'input';
+  input.dataset.key = key;
+  input.placeholder = defaultText;
+
+  const playBtn = document.createElement('button');
+  playBtn.className = 'btn btn-ghost narration-play-btn';
+  playBtn.textContent = '▶';
+  playBtn.title = 'Écouter';
+  playBtn.addEventListener('click', async () => {
+    if (playBtn.classList.contains('narration-playing')) return;
+    playBtn.classList.add('narration-playing');
+    try { await _say(narration[key] ?? defaultText); }
+    finally { playBtn.classList.remove('narration-playing'); }
+  });
+
+  const uploadBtn = document.createElement('button');
+  uploadBtn.className = 'btn btn-ghost narration-upload-btn';
+  uploadBtn.textContent = '🎵';
+
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = 'audio/*,video/*';
+  fileInput.style.display = 'none';
+
+  function isAudio() { return (narration[key] ?? '').startsWith('#'); }
+
+  function syncDisplay() {
+    if (isAudio()) {
+      input.value    = '#[audio]';
+      input.readOnly = true;
+      input.classList.add('narration-audio-set');
+      uploadBtn.classList.add('narration-upload-active');
+      uploadBtn.title = 'Supprimer l\'audio';
+    } else {
+      input.value    = narration[key] ?? defaultText;
+      input.readOnly = false;
+      input.classList.remove('narration-audio-set');
+      uploadBtn.classList.remove('narration-upload-active');
+      uploadBtn.title = 'Uploader un audio';
+    }
+  }
+
+  if (syncFns) syncFns.set(key, syncDisplay);
+  syncDisplay();
+
+  input.addEventListener('change', () => {
+    if (isAudio()) return;
+    narration[key] = input.value.trim() || defaultText;
+    saveNarrationSettings();
+  });
+
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async e => {
+      const trimmed = await trimSilence(e.target.result);
+      narration[key] = '#' + trimmed;
+      saveNarrationSettings();
+      syncDisplay();
+    };
+    reader.readAsDataURL(file);
+    fileInput.value = '';
+  });
+
+  uploadBtn.addEventListener('click', () => {
+    if (isAudio()) {
+      narration[key] = defaultText;
+      saveNarrationSettings();
+      syncDisplay();
+    } else {
+      fileInput.click();
+    }
+  });
+
+  const btnGroup = document.createElement('div');
+  btnGroup.className = 'narration-btn-group';
+  btnGroup.appendChild(playBtn);
+  btnGroup.appendChild(uploadBtn);
+  btnGroup.appendChild(fileInput);
+
+  header.appendChild(labelWrap);
+  header.appendChild(btnGroup);
+  field.appendChild(header);
+  field.appendChild(input);
+  container.appendChild(field);
+}
+
 function initNarrationSection() {
   const container = document.getElementById('narrationFields');
   const syncFns   = new Map();
@@ -336,13 +448,15 @@ function initNarrationSection() {
   bulkInput.addEventListener('change', async () => {
     const files = [...bulkInput.files];
     if (!files.length) return;
-    bulkBtn.disabled     = true;
+    bulkBtn.disabled       = true;
     bulkStatus.textContent = `Traitement de ${files.length} fichier(s)…`;
 
-    let matched = 0, skipped = 0;
+    let matched = 0, skipped = 0, playerUpdated = false;
     for (const file of files) {
-      const stem = file.name.replace(/\.[^/.]+$/, '');
-      if (!(stem in NARRATION_DEFAULTS)) { skipped++; continue; }
+      const stem    = file.name.replace(/\.[^/.]+$/, '');
+      const inStatic = stem in NARRATION_DEFAULTS;
+      const inPlayer = stem in narration; // player keys déjà enregistrées
+      if (!inStatic && !inPlayer) { skipped++; continue; }
       const dataURL = await new Promise(r => {
         const fr = new FileReader();
         fr.onload = e => r(e.target.result);
@@ -350,10 +464,12 @@ function initNarrationSection() {
       });
       const trimmed = await trimSilence(dataURL);
       narration[stem] = '#' + trimmed;
-      syncFns.get(stem)?.();
+      if (inStatic) syncFns.get(stem)?.();
+      else           playerUpdated = true;
       matched++;
     }
 
+    if (playerUpdated) renderPlayerNarrations();
     await saveNarrationSettings();
     bulkStatus.textContent = `${matched} importé(s)${skipped ? `, ${skipped} ignoré(s)` : ''}`;
     bulkBtn.disabled = false;
@@ -366,122 +482,54 @@ function initNarrationSection() {
   bulkZone.appendChild(bulkStatus);
   container.appendChild(bulkZone);
 
-  // ── Champs individuels ────────────────────────────────────────────────────
+  // ── Champs statiques ──────────────────────────────────────────────────────
   for (const [key, defaultText] of Object.entries(NARRATION_DEFAULTS)) {
-    const field = document.createElement('div');
-    field.className = 'settings-field';
-
-    const header = document.createElement('div');
-    header.className = 'settings-field-header';
-
-    const labelWrap = document.createElement('span');
-    labelWrap.className = 'narration-label-wrap';
-    labelWrap.textContent = key;
-
-    const vars = [...defaultText.matchAll(/\{(\w+)\}/g)].map(m => `{${m[1]}}`);
-    if (vars.length) {
-      const hint = document.createElement('span');
-      hint.className = 'narration-vars';
-      hint.textContent = ' ' + vars.join(' ');
-      labelWrap.appendChild(hint);
-    }
-
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.className = 'input';
-    input.dataset.key = key;
-    input.placeholder = defaultText;
-
-    const playBtn = document.createElement('button');
-    playBtn.className = 'btn btn-ghost narration-play-btn';
-    playBtn.textContent = '▶';
-    playBtn.title = 'Écouter';
-    playBtn.addEventListener('click', async () => {
-      if (playBtn.classList.contains('narration-playing')) return;
-      playBtn.classList.add('narration-playing');
-      try { await _say(narration[key] ?? defaultText); }
-      finally { playBtn.classList.remove('narration-playing'); }
-    });
-
-    const uploadBtn = document.createElement('button');
-    uploadBtn.className = 'btn btn-ghost narration-upload-btn';
-    uploadBtn.textContent = '🎵';
-    uploadBtn.title = 'Uploader un audio';
-
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = 'audio/*,video/*';
-    fileInput.style.display = 'none';
-
-    function isAudio() { return (narration[key] ?? '').startsWith('#'); }
-
-    function syncDisplay() {
-      if (isAudio()) {
-        input.value    = '#[audio]';
-        input.readOnly = true;
-        input.classList.add('narration-audio-set');
-        uploadBtn.classList.add('narration-upload-active');
-        uploadBtn.title = 'Supprimer l\'audio';
-      } else {
-        input.value    = narration[key] ?? defaultText;
-        input.readOnly = false;
-        input.classList.remove('narration-audio-set');
-        uploadBtn.classList.remove('narration-upload-active');
-        uploadBtn.title = 'Uploader un audio';
-      }
-    }
-
-    syncFns.set(key, syncDisplay);
-    syncDisplay();
-
-    input.addEventListener('change', () => {
-      if (isAudio()) return;
-      narration[key] = input.value.trim() || defaultText;
-      saveNarrationSettings();
-    });
-
-    fileInput.addEventListener('change', () => {
-      const file = fileInput.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = async e => {
-        const trimmed = await trimSilence(e.target.result);
-        narration[key] = '#' + trimmed;
-        saveNarrationSettings();
-        syncDisplay();
-      };
-      reader.readAsDataURL(file);
-      fileInput.value = '';
-    });
-
-    uploadBtn.addEventListener('click', () => {
-      if (isAudio()) {
-        narration[key] = defaultText;
-        saveNarrationSettings();
-        syncDisplay();
-      } else {
-        fileInput.click();
-      }
-    });
-
-    const btnGroup = document.createElement('div');
-    btnGroup.className = 'narration-btn-group';
-    btnGroup.appendChild(playBtn);
-    btnGroup.appendChild(uploadBtn);
-    btnGroup.appendChild(fileInput);
-
-    header.appendChild(labelWrap);
-    header.appendChild(btnGroup);
-
-    field.appendChild(header);
-    field.appendChild(input);
-    container.appendChild(field);
+    _buildNarrationField(container, key, defaultText, syncFns);
   }
+
+  // ── Section joueurs (peuplée dynamiquement par renderPlayerNarrations) ────
+  const playerSection = document.createElement('div');
+  playerSection.id        = 'narrationPlayerSection';
+  playerSection.className = 'narration-player-section';
+  playerSection.style.display = 'none';
+
+  const playerLabel = document.createElement('div');
+  playerLabel.className   = 'section-label';
+  playerLabel.style.marginTop = '12px';
+  playerLabel.textContent = 'Joueurs';
+  playerSection.appendChild(playerLabel);
+
+  const playerContainer = document.createElement('div');
+  playerContainer.id = 'narrationPlayerFields';
+  playerSection.appendChild(playerContainer);
+  container.appendChild(playerSection);
 
   document.getElementById('narrationResetBtn').addEventListener('click', () => {
     resetNarrationSettings();
     for (const fn of syncFns.values()) fn();
+    // Les entrées joueurs ne sont pas dans NARRATION_DEFAULTS → non réinitialisées
   });
+}
+
+// Reconstruit la liste des champs joueurs dans la section Narration.
+// Appelé à chaque changement de la liste des joueurs (host uniquement).
+function renderPlayerNarrations() {
+  const section   = document.getElementById('narrationPlayerSection');
+  const container = document.getElementById('narrationPlayerFields');
+  if (!section || !container) return;
+
+  container.innerHTML = '';
+
+  if (!players.length) {
+    section.style.display = 'none';
+    return;
+  }
+
+  section.style.display = '';
+  for (const p of players) {
+    ensurePlayerNarration(p.username);
+    _buildNarrationField(container, `Joueur - ${p.username}`, p.username, null);
+  }
 }
 
 function bindCollapsible(toggleId, contentId, iconId) {
