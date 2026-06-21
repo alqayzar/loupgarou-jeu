@@ -956,6 +956,7 @@ input, button, textarea { font-family: inherit; }
 .role-orange { --role-bg: var(--candy-orange); }
 .role-violet { --role-bg: var(--candy-violet); }
 .role-blue   { --role-bg: var(--candy-blue); }
+.role-pink   { --role-bg: var(--candy-pink); }
 
 /* ==========================================================
    Scrollbar

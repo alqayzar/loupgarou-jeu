@@ -24,14 +24,21 @@ const ROLES = [
     locked: false, enabled: true, countable: true, count: 1, max: 1,
     desc: 'Chaque nuit, elle peut consulter l\'identité secrète d\'un joueur de son choix.',
   },
+  {
+    id: 'petite_fille', label: 'Petite Fille', emoji: '👧', colorClass: 'role-pink', type: 'villager',
+    locked: false, enabled: false, countable: true, count: 1, max: null,
+    maxFn: () => ROLES.find(r => r.id === 'loupgarou')?.count ?? 1,
+    desc: 'Peut espionner les loups garous pendant leur phase de nuit, au risque d\'être démasquée.',
+  },
 ];
 
 let hostSpectator = false;
 
 const scenarioSettings = {
-  allowBlankVote:       false,
-  voteTimeoutEnabled:   false,
-  voteTimeoutSeconds:   120,
+  allowBlankVote:          false,
+  voteTimeoutEnabled:      false,
+  voteTimeoutSeconds:      120,
+  announceWitchPotions:    true,
 };
 
 // Nombre de joueurs effectivement jouables (exclut le host s'il est spectateur)
@@ -70,7 +77,8 @@ function getMaxCount(roleId) {
     .filter(r => r.id !== roleId && r.countable && r.enabled)
     .reduce((sum, r) => sum + r.count, 0);
   const formulaMax = Math.max(1, total - otherTotal - 1);
-  return r?.max != null ? Math.min(r.max, formulaMax) : formulaMax;
+  const hardMax = r?.maxFn ? r.maxFn() : r?.max;
+  return hardMax != null ? Math.min(hardMax, formulaMax) : formulaMax;
 }
 
 function toggleRole(id) {

@@ -270,6 +270,13 @@ function initSettings() {
     saveRoleSettings();
   });
 
+  const announceWitchPotionsCheck = document.getElementById('announceWitchPotionsCheck');
+  announceWitchPotionsCheck.checked = scenarioSettings.announceWitchPotions;
+  announceWitchPotionsCheck.addEventListener('change', () => {
+    scenarioSettings.announceWitchPotions = announceWitchPotionsCheck.checked;
+    saveRoleSettings();
+  });
+
   const voteTimeoutCheck = document.getElementById('voteTimeoutCheck');
   const voteTimeoutField = document.getElementById('voteTimeoutField');
   const voteTimeoutInput = document.getElementById('voteTimeoutInput');

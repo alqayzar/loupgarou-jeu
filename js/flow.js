@@ -11,6 +11,17 @@ function getMajority(peerIds) {
   return null;
 }
 
+// Retourne le peerId ayant reçu le plus de votes.
+// En cas d'égalité parfaite entre les premiers, retourne null.
+function getMostVoted(peerIds) {
+  if (!peerIds.length) return null;
+  const counts = {};
+  for (const id of peerIds) counts[id] = (counts[id] ?? 0) + 1;
+  const max = Math.max(...Object.values(counts));
+  const leaders = Object.keys(counts).filter(id => counts[id] === max);
+  return leaders.length === 1 ? leaders[0] : null;
+}
+
 // Retourne true si au moins un joueur vivant (ou tué cette nuit) possède ce rôle.
 // Un joueur tué cette nuit (dead === round) est encore considéré vivant pendant la nuit.
 function isRolePresent(role) {
@@ -33,7 +44,7 @@ function wolfFlow() {
     States.say(narration["Loups garous - réveil"]),
     States.select('loupgarou', 'Selectionner une victime !', '🐺 Désigner'),
     States.on('confirm_selection_all', (targets) => {
-      const victim = getMajority(targets);
+      const victim = getMostVoted(targets);
       return victim
         ? [States.kill(victim)]
         : [States.jump("begin_wolf_vote")];
@@ -51,7 +62,7 @@ function witchFlow() {
       const deaths = getRoundDeaths();
       if (deaths.length === 0 || States.get('sorciere_save_used')) return [];
       return [
-        States.say(narration["Sorcière - proposition sauvetage"]),
+        ...(scenarioSettings.announceWitchPotions ? [States.say(narration["Sorcière - proposition sauvetage"])] : []),
         States.choice('sorciere', `Voulez-vous sauver ${deaths[0].username} ?`, ['💊 Sauver', 'Non']),
         States.on('choice', ({ choiceIndex }) => {
           if (choiceIndex === 0) {
@@ -67,7 +78,7 @@ function witchFlow() {
     States.run(() => {
       if (States.get('sorciere_poison_used')) return [];
       return [
-        States.say(narration["Sorcière - proposition poison"]),
+        ...(scenarioSettings.announceWitchPotions ? [States.say(narration["Sorcière - proposition poison"])] : []),
         States.choice('sorciere', 'Voulez vous utiliser votre poison ?', ['☠️ Empoisonner', 'Non']),
         States.on('choice', ({ choiceIndex }) => choiceIndex !== 0 ? [] : [
           States.select('sorciere', 'Choisissez votre victime.', '☠️ Empoisonner'),
@@ -111,13 +122,14 @@ function _formatVoteDuration(seconds) {
 
 function villageVoteFlow() {
   return [
-    States.label('begin_village_vote'),
-
+    
     States.say(narration['Vote - ouverture']),
     States.run(() => scenarioSettings.voteTimeoutEnabled
-      ? [States.say(narrate('Vote - avertissement timeout'))]
-      : []),
-
+    ? [States.say(narrate('Vote - avertissement timeout'))]
+    : []),
+    
+    States.label('begin_village_vote'),
+    
     States.select('alive', 'Votez pour éliminer un suspect.', '🗳️ Voter', scenarioSettings.allowBlankVote),
 
     States.run(() => scenarioSettings.voteTimeoutEnabled
@@ -130,13 +142,16 @@ function villageVoteFlow() {
         States.say(narration['Vote - temps écoulé']),
       ],
       'confirm_selection_all': (targets) => {
-      const victim = getMajority(targets);
+      const victim = getMostVoted(targets);
       if (!victim) return [
         States.clearTimeout('village_vote'),
+        States.reset(),
         States.say(narration['Vote - pas de majorité']),
         States.jump('begin_village_vote'),
       ];
       if (victim === 'none') return [
+        States.clearTimeout('village_vote'),
+        States.reset(),
         States.say(narration['Vote - vote blanc']),
       ];
       const player     = connectedInGame.find(p => p.id === victim);
@@ -144,6 +159,7 @@ function villageVoteFlow() {
       const role       = assignment?.role || 'inconnu';
       return [
         States.clearTimeout('village_vote'),
+        States.reset(),
         States.say(narrate(`Joueur - ${player?.username || 'Un joueur'}`)),
         States.say(narration['Vote - élimination']),
         States.say(narrate(`Annonce rôle - ${role}`)),
