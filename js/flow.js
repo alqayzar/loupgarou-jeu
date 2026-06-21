@@ -113,9 +113,10 @@ function villageVoteFlow() {
   return [
     States.label('begin_village_vote'),
 
+    States.say(narration['Vote - ouverture']),
     States.run(() => scenarioSettings.voteTimeoutEnabled
-      ? [States.say(narrate('Vote - ouverture avec timer', { duration: _formatVoteDuration(scenarioSettings.voteTimeoutSeconds) }))]
-      : [States.say(narration['Vote - ouverture'])]),
+      ? [States.say(narrate('Vote - avertissement timeout'))]
+      : []),
 
     States.select('alive', 'Votez pour éliminer un suspect.', '🗳️ Voter', scenarioSettings.allowBlankVote),
 

@@ -5,8 +5,8 @@
 
 const NARRATION_DEFAULTS = {
   // Nuit — général
-  "Village - endormissement":            "Le village s'endort, fermez les yeux",
-  "Village - réveil":                    "Le village se réveille, ouvrez les yeux",
+  "Village - endormissement":            "Le village s'endort, fermez les yeux !",
+  "Village - réveil":                    "Le village se réveille, ouvrez les yeux !",
 
   // Loups garous
   "Loups garous - réveil":               "Loup garou, ouvrez les yeux !",
@@ -24,6 +24,7 @@ const NARRATION_DEFAULTS = {
 
   // Vote du village
   "Vote - ouverture":                    "Le village doit voter pour éliminer un suspect.",
+  "Vote - avertissement timeout":        "Attention votre temps est compté !",
   "Vote - ouverture avec timer":         "Le village doit voter pour éliminer un suspect. {duration}",
   "Vote - temps écoulé":                 "Le village n'a pas voté dans le temps imparti, aucun joueur n'est éliminé !",
   "Vote - pas de majorité":              "Un vote majoritaire est requis !",
