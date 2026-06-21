@@ -796,6 +796,12 @@ input, button, textarea { font-family: inherit; }
   color: var(--candy-violet);
 }
 
+.narration-delete-btn {
+  padding: 2px 6px;
+  font-size: 0.65rem;
+  color: var(--color-danger);
+}
+
 .narration-playing {
   color: var(--color-primary);
   box-shadow: 0 0 0 1px var(--color-primary);

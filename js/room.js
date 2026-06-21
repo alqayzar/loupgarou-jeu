@@ -360,19 +360,24 @@ function _buildNarrationField(container, key, defaultText, syncFns) {
 
   function isAudio() { return (narration[key] ?? '').startsWith('#'); }
 
+  const deleteBtn = document.createElement('button');
+  deleteBtn.className   = 'btn btn-ghost narration-delete-btn';
+  deleteBtn.textContent = '✕';
+  deleteBtn.title       = 'Supprimer l\'audio';
+
   function syncDisplay() {
     if (isAudio()) {
       input.value    = '#[audio]';
       input.readOnly = true;
       input.classList.add('narration-audio-set');
       uploadBtn.classList.add('narration-upload-active');
-      uploadBtn.title = 'Supprimer l\'audio';
+      deleteBtn.style.display = '';
     } else {
       input.value    = narration[key] ?? defaultText;
       input.readOnly = false;
       input.classList.remove('narration-audio-set');
       uploadBtn.classList.remove('narration-upload-active');
-      uploadBtn.title = 'Uploader un audio';
+      deleteBtn.style.display = 'none';
     }
   }
 
@@ -399,20 +404,19 @@ function _buildNarrationField(container, key, defaultText, syncFns) {
     fileInput.value = '';
   });
 
-  uploadBtn.addEventListener('click', () => {
-    if (isAudio()) {
-      narration[key] = defaultText;
-      saveNarrationSettings();
-      syncDisplay();
-    } else {
-      fileInput.click();
-    }
+  uploadBtn.addEventListener('click', () => fileInput.click());
+
+  deleteBtn.addEventListener('click', () => {
+    narration[key] = defaultText;
+    saveNarrationSettings();
+    syncDisplay();
   });
 
   const btnGroup = document.createElement('div');
   btnGroup.className = 'narration-btn-group';
   btnGroup.appendChild(playBtn);
   btnGroup.appendChild(uploadBtn);
+  btnGroup.appendChild(deleteBtn);
   btnGroup.appendChild(fileInput);
 
   header.appendChild(labelWrap);
