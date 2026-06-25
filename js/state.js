@@ -90,7 +90,7 @@ function onChoiceReceived(selectorId, choiceIndex) {
 const States = Object.freeze({
   LOCAL:  'local',
   GLOBAL: 'global',
-  get:    (key) => _vars[key],
+  get:    (key, defaultValue) => _vars[key] !== undefined ? _vars[key] : defaultValue,
   set:    (key, value, scope = 'local') => ({ type: 'set', key, value, scope }),
   wait:         (seconds)          => ({ type: 'wait',   seconds }),
   sleep:        ()                 => ({ type: 'sleep' }),
@@ -115,6 +115,7 @@ const States = Object.freeze({
   many_on:      (handlers)        => ({ type: 'many_on',      handlers }),
   conditional:  (condition, ifSteps, elseSteps = []) => ({ type: 'conditional', condition, ifSteps, elseSteps }),
   reveal:       (team) => ({ type: 'reveal', team }),
+  refresh:      ()     => ({ type: 'refresh' }),
   triggerEvent,
 });
 
@@ -239,9 +240,15 @@ async function _executeStep(step, labels) {
       break;
     }
     case 'reveal': {
-      const msg = { type: MSG.REVEAL, team: step.team, assignments: roleAssignments };
+      const msg = { type: MSG.REVEAL, team: step.team };
       for (const conn of Object.values(connections)) conn.send(msg);
-      applyReveal(step.team, roleAssignments);
+      applyReveal(step.team, States.get('roles', []));
+      break;
+    }
+    case 'refresh': {
+      renderGameGrid();
+      const msg = { type: MSG.REFRESH_GRID };
+      for (const conn of Object.values(connections)) conn.send(msg);
       break;
     }
     case 'conditional': {
@@ -284,7 +291,7 @@ function _wait(seconds) {
 // Le host est traité directement (pas via le réseau).
 function _wakeRole(roleId) {
   if (!roleId) { setStateForAll('wake'); return; }
-  const targets = roleAssignments.filter(a => a.role === roleId);
+  const targets = States.get('roles', []).filter(a => a.role === roleId);
   for (const { id } of targets) {
     setStateForPlayer(id, 'wake');
   }
@@ -293,9 +300,9 @@ function _wakeRole(roleId) {
 // Met en mode sélection les joueurs possédant le rôle spécifié (vivants uniquement).
 // Si roleId est null, tous les joueurs vivants passent en mode sélection.
 function _choiceRole(roleId, label, choices) {
-  const alive = connectedInGame.filter(p => p.dead == null || p.dead === round);
+  const alive = connectedInGame.filter(p => p.dead == null || p.dead === States.get('round', 0));
   const targets = roleId
-    ? roleAssignments.filter(a => a.role === roleId && alive.some(p => p.id === a.id))
+    ? States.get('roles', []).filter(a => a.role === roleId && alive.some(p => p.id === a.id))
     : alive;
   for (const { id } of targets) setStateForPlayer(id, 'choice', { label, choices });
 }
@@ -307,8 +314,8 @@ function _selectRole(roleId, label, buttonText, allowNone = false) {
   if (roleId === 'alive') {
     targets = connectedInGame.filter(p => p.dead == null);
   } else {
-    const pool = connectedInGame.filter(p => p.dead == null || p.dead === round);
-    targets = roleId ? roleAssignments.filter(a => a.role === roleId && pool.some(p => p.id === a.id)) : pool;
+    const pool = connectedInGame.filter(p => p.dead == null || p.dead === States.get('round', 0));
+    targets = roleId ? States.get('roles', []).filter(a => a.role === roleId && pool.some(p => p.id === a.id)) : pool;
   }
   _selectCount = targets.length;
   for (const { id } of targets) setStateForPlayer(id, 'select', { label, buttonText, allowNone });

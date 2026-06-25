@@ -71,6 +71,12 @@ function createPlayerCard(player, { canKick = false, onKick = null, onSelect = n
   const name = document.createElement('div');
   name.className = 'player-name';
   name.textContent = player.username;
+  if (typeof States !== 'undefined' && States.get('maire') === player.id) {
+    const mayorIcon = document.createElement('span');
+    mayorIcon.className = 'mayor-icon';
+    mayorIcon.textContent = ' 🎖️';
+    name.appendChild(mayorIcon);
+  }
 
   card.appendChild(avatarWrap);
   card.appendChild(name);

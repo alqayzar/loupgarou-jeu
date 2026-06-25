@@ -766,9 +766,21 @@ input, button, textarea { font-family: inherit; }
 }
 
 .narration-play-btn,
-.narration-upload-btn {
+.narration-upload-btn,
+.narration-mic-btn {
   padding: 2px 8px;
   font-size: 0.7rem;
+}
+
+.narration-recording {
+  color: var(--color-danger);
+  box-shadow: 0 0 0 1px var(--color-danger);
+  animation: pulse-record 1s ease-in-out infinite;
+}
+
+@keyframes pulse-record {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
 }
 
 .narration-bulk-zone {

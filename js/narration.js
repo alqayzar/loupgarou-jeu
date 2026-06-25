@@ -35,6 +35,11 @@ const NARRATION_DEFAULTS = {
   "Nuit - aucun mort":                   "Cette nuit, personne n'est mort.",
   "Nuit - joueur tué":                   "a été tué cette nuit.",
 
+  // Vote du maire
+  "Vote - maire":                        "Le village doit élire son maire !",
+  "Vote - maire égalité":                "Égalité ! Le village doit revoter pour le maire !",
+  "Vote - maire élu":                    "est élu maire du village !",
+
   // Fin de partie
   "Victoire villageois":                 "Les villageois ont gagné ! Tous les loups garous sont morts !",
   "Victoire loups garous":               "Les loups garous ont gagné ! Ils sont maintenant majoritaires !",

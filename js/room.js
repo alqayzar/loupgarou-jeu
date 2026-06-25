@@ -125,7 +125,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initHost();
   } else {
     if (session.gameActive) {
-      restoreGameStateClient(session);
+      await restoreGameStateClient(session);
     }
     initClient(session.myPeerId || undefined);
   }
@@ -318,6 +318,8 @@ function initSettings() {
   initVoiceSection();
 }
 
+let _activeRecorder = null; // { mediaRecorder, stream, micBtn } — un seul enregistrement à la fois
+
 // Construit et insère un champ narration (label + play + upload + input) dans container.
 // syncFns : Map optionnelle pour enregistrer la fonction de refresh de l'affichage.
 function _buildNarrationField(container, key, defaultText, syncFns) {
@@ -411,6 +413,47 @@ function _buildNarrationField(container, key, defaultText, syncFns) {
     fileInput.value = '';
   });
 
+  const micBtn = document.createElement('button');
+  micBtn.className = 'btn btn-ghost narration-mic-btn';
+  micBtn.textContent = '🎙';
+  micBtn.title = 'Enregistrer';
+  if (!navigator.mediaDevices?.getUserMedia) micBtn.style.display = 'none';
+
+  micBtn.addEventListener('click', async () => {
+    if (_activeRecorder?.micBtn === micBtn) {
+      _activeRecorder.mediaRecorder.stop();
+      return;
+    }
+    if (_activeRecorder) _activeRecorder.mediaRecorder.stop();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      const chunks = [];
+      _activeRecorder = { mediaRecorder, stream, micBtn };
+      micBtn.textContent = '⏹';
+      micBtn.classList.add('narration-recording');
+      mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        _activeRecorder = null;
+        micBtn.textContent = '🎙';
+        micBtn.classList.remove('narration-recording');
+        const blob = new Blob(chunks, { type: mediaRecorder.mimeType });
+        const reader = new FileReader();
+        reader.onload = async ev => {
+          const trimmed = await trimSilence(ev.target.result);
+          narration[key] = '#' + trimmed;
+          saveNarrationSettings();
+          syncDisplay();
+        };
+        reader.readAsDataURL(blob);
+      };
+      mediaRecorder.start();
+    } catch {
+      showToast('Microphone non disponible');
+    }
+  });
+
   uploadBtn.addEventListener('click', () => fileInput.click());
 
   deleteBtn.addEventListener('click', () => {
@@ -422,6 +465,7 @@ function _buildNarrationField(container, key, defaultText, syncFns) {
   const btnGroup = document.createElement('div');
   btnGroup.className = 'narration-btn-group';
   btnGroup.appendChild(playBtn);
+  btnGroup.appendChild(micBtn);
   btnGroup.appendChild(uploadBtn);
   btnGroup.appendChild(deleteBtn);
   btnGroup.appendChild(fileInput);

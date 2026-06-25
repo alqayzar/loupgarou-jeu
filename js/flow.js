@@ -25,15 +25,15 @@ function getMostVoted(peerIds) {
 // Retourne true si au moins un joueur vivant (ou tué cette nuit) possède ce rôle.
 // Un joueur tué cette nuit (dead === round) est encore considéré vivant pendant la nuit.
 function isRolePresent(role) {
-  return roleAssignments.some(a =>
+  return States.get('roles', []).some(a =>
     a.role === role &&
-    connectedInGame.some(p => p.id === a.id && (p.dead == null || p.dead === round))
+    connectedInGame.some(p => p.id === a.id && (p.dead == null || p.dead === (States.get('round', 0))))
   );
 }
 
 // Retourne les joueurs tués durant ce round.
 function getRoundDeaths() {
-  return connectedInGame.filter(p => p.dead === round);
+  return connectedInGame.filter(p => p.dead === (States.get('round', 0)));
 }
 
 // ─── Night flow ───────────────────────────────────────────────────────────────
@@ -41,7 +41,7 @@ function wolfFlow() {
   return [
     States.label("begin_wolf_vote"),
     // States.wake('loupgarou'),
-    States.say(narration["Loups garous - réveil"]),
+    States.say(narrate("Loups garous - réveil")),
     States.select('loupgarou', 'Selectionner une victime !', '🐺 Désigner'),
     States.on('confirm_selection_all', (targets) => {
       const victim = getMostVoted(targets);
@@ -49,7 +49,7 @@ function wolfFlow() {
         ? [States.kill(victim)]
         : [States.jump("begin_wolf_vote")];
     }),
-    States.say(narration["Loups garous - sommeil"]),
+    States.say(narrate("Loups garous - sommeil")),
     States.sleep(),
   ];
 }
@@ -57,12 +57,12 @@ function wolfFlow() {
 function witchFlow() {
   return [
     // States.wake('sorciere'),
-    States.say(narration["Sorcière - réveil"]),
+    States.say(narrate("Sorcière - réveil")),
     States.run(() => {
       const deaths = getRoundDeaths();
       if (deaths.length === 0 || States.get('sorciere_save_used')) return [];
       return [
-        ...(scenarioSettings.announceWitchPotions ? [States.say(narration["Sorcière - proposition sauvetage"])] : []),
+        ...(scenarioSettings.announceWitchPotions ? [States.say(narrate("Sorcière - proposition sauvetage"))] : []),
         States.choice('sorciere', `Voulez-vous sauver ${deaths[0].username} ?`, ['💊 Sauver', 'Non']),
         States.on('choice', ({ choiceIndex }) => {
           if (choiceIndex === 0) {
@@ -78,7 +78,7 @@ function witchFlow() {
     States.run(() => {
       if (States.get('sorciere_poison_used')) return [];
       return [
-        ...(scenarioSettings.announceWitchPotions ? [States.say(narration["Sorcière - proposition poison"])] : []),
+        ...(scenarioSettings.announceWitchPotions ? [States.say(narrate("Sorcière - proposition poison"))] : []),
         States.choice('sorciere', 'Voulez vous utiliser votre poison ?', ['☠️ Empoisonner', 'Non']),
         States.on('choice', ({ choiceIndex }) => choiceIndex !== 0 ? [] : [
           States.select('sorciere', 'Choisissez votre victime.', '☠️ Empoisonner'),
@@ -89,7 +89,7 @@ function witchFlow() {
         ]),
       ];
     }),
-    States.say(narration["Sorcière - sommeil"]),
+    States.say(narrate("Sorcière - sommeil")),
     States.sleep(),
   ];
 }
@@ -97,17 +97,17 @@ function witchFlow() {
 function seerFlow() {
   return [
     States.wake('voyante'),
-    States.say(narration["Voyante - réveil"]),
+    States.say(narrate("Voyante - réveil")),
     States.select('voyante', 'Choisissez un joueur à observer.', '🔮 Observer'),
     States.on('confirm_selection_all', (targets) => {
-      const assignment = roleAssignments.find(a => a.id === targets[0]);
+      const assignment = States.get('roles', []).find(a => a.id === targets[0]);
       const role = assignment?.role || 'inconnu';
       return [
         States.choice('voyante', `Ce joueur est : ${role}`, ['OK']),
         States.on('choice', () => []),
       ];
     }),
-    States.say(narration["Voyante - sommeil"]),
+    States.say(narrate("Voyante - sommeil")),
     States.sleep(),
   ];
 }
@@ -120,52 +120,78 @@ function _formatVoteDuration(seconds) {
   return `Vous avez ${m} minute${m > 1 ? 's' : ''} et ${s} seconde${s > 1 ? 's' : ''} pour voter.`;
 }
 
+function mayorVoteFlow() {
+  return [
+    States.say(narrate('Vote - maire')),
+    States.label('begin_mayor_vote'),
+    States.set('select_disable_self', true, States.GLOBAL),
+    States.select('alive', 'Votez pour élire le maire.', '👑 Élire'),
+    States.on('confirm_selection_all', (targets) => {
+      const mayor = getMostVoted(targets);
+      if (!mayor) return [
+        States.reset(),
+        States.say(narrate('Vote - maire égalité')),
+        States.jump('begin_mayor_vote'),
+      ];
+      const player = connectedInGame.find(p => p.id === mayor);
+      return [
+        States.reset(),
+        States.say(narrate(`Joueur - ${player?.username || 'Un joueur'}`)),
+        States.say(narrate('Vote - maire élu')),
+        States.set('maire', mayor, States.GLOBAL),
+        States.refresh(),
+      ];
+    }),
+    States.set('select_disable_self', false),
+  ];
+}
+
 function villageVoteFlow() {
   return [
-    
-    States.say(narration['Vote - ouverture']),
+    States.say(narrate('Vote - ouverture')),
     States.run(() => scenarioSettings.voteTimeoutEnabled
-    ? [States.say(narrate('Vote - avertissement timeout'))]
-    : []),
-    
+      ? [States.say(narrate('Vote - avertissement timeout'))]
+      : []),
+
     States.label('begin_village_vote'),
-    
+
     States.select('alive', 'Votez pour éliminer un suspect.', '🗳️ Voter', scenarioSettings.allowBlankVote),
 
     States.run(() => scenarioSettings.voteTimeoutEnabled
       ? [States.timeout('village_vote', scenarioSettings.voteTimeoutSeconds * 1000, States.GLOBAL)]
       : []),
-    
+
     States.many_on({
       'timeout:village_vote': () => [
         States.reset(),
-        States.say(narration['Vote - temps écoulé']),
+        States.say(narrate('Vote - temps écoulé')),
       ],
       'confirm_selection_all': (targets) => {
-      const victim = getMostVoted(targets);
-      if (!victim) return [
-        States.clearTimeout('village_vote'),
-        States.reset(),
-        States.say(narration['Vote - pas de majorité']),
-        States.jump('begin_village_vote'),
-      ];
-      if (victim === 'none') return [
-        States.clearTimeout('village_vote'),
-        States.reset(),
-        States.say(narration['Vote - vote blanc']),
-      ];
-      const player     = connectedInGame.find(p => p.id === victim);
-      const assignment = roleAssignments.find(a => a.id === victim);
-      const role       = assignment?.role || 'inconnu';
-      return [
-        States.clearTimeout('village_vote'),
-        States.reset(),
-        States.say(narrate(`Joueur - ${player?.username || 'Un joueur'}`)),
-        States.say(narration['Vote - élimination']),
-        States.say(narrate(`Annonce rôle - ${role}`)),
-        States.kill(victim),
-      ];
-    }}),
+        const victim = getMostVoted(targets);
+        if (!victim) return [
+          States.clearTimeout('village_vote'),
+          States.reset(),
+          States.say(narrate('Vote - pas de majorité')),
+          States.jump('begin_village_vote'),
+        ];
+        if (victim === 'none') return [
+          States.clearTimeout('village_vote'),
+          States.reset(),
+          States.say(narrate('Vote - vote blanc')),
+        ];
+        const player     = connectedInGame.find(p => p.id === victim);
+        const assignment = States.get('roles', []).find(a => a.id === victim);
+        const role       = assignment?.role || 'inconnu';
+        return [
+          States.clearTimeout('village_vote'),
+          States.reset(),
+          States.say(narrate(`Joueur - ${player?.username || 'Un joueur'}`)),
+          States.say(narrate('Vote - élimination')),
+          States.say(narrate(`Annonce rôle - ${role}`)),
+          States.kill(victim),
+        ];
+      },
+    }),
   ];
 }
 
@@ -173,19 +199,22 @@ function checkWinFlow() {
   return [
     States.run(() => {
       const alive     = connectedInGame.filter(p => p.dead == null);
-      const wolves    = alive.filter(p => roleAssignments.some(a => a.id === p.id && a.role === 'loupgarou'));
-      const villagers = alive.filter(p => !roleAssignments.some(a => a.id === p.id && a.role === 'loupgarou'));
+      const roles     = States.get('roles', []);
+      const wolves    = alive.filter(p => roles.some(a => a.id === p.id && a.role === 'loupgarou'));
+      const villagers = alive.filter(p => !roles.some(a => a.id === p.id && a.role === 'loupgarou'));
 
       if (wolves.length === 0) {
+        gameActive = false;
         return [
-          States.say(narration['Victoire villageois']),
+          States.say(narrate('Victoire villageois')),
           States.reveal('villageois'),
           States.jump('exit'),
         ];
       }
       if (wolves.length >= villagers.length) {
+        gameActive = false;
         return [
-          States.say(narration['Victoire loups garous']),
+          States.say(narrate('Victoire loups garous')),
           States.reveal('loupgarou'),
           States.jump('exit'),
         ];
@@ -197,14 +226,15 @@ function checkWinFlow() {
 
 function announceDeathsFlow() {
   return [
+    States.refresh(),
     States.run(() => {
       const deaths = getRoundDeaths();
-      if (deaths.length === 0) return [States.say(narration['Nuit - aucun mort'])];
+      if (deaths.length === 0) return [States.say(narrate('Nuit - aucun mort'))];
       return deaths.flatMap(p => {
-        const role = roleAssignments.find(a => a.id === p.id)?.role || 'inconnu';
+        const role = States.get('roles', []).find(a => a.id === p.id)?.role || 'inconnu';
         return [
           States.say(narrate(`Joueur - ${p.username}`)),
-          States.say(narration['Nuit - joueur tué']),
+          States.say(narrate('Nuit - joueur tué')),
           States.say(narrate(`Annonce rôle - ${role}`)),
         ];
       });
@@ -212,36 +242,20 @@ function announceDeathsFlow() {
   ];
 }
 
-// function testTimeoutFlow() {
-//   return [
-//     States.wait(3),
-//     States.timeout('hello', 20_000, States.GLOBAL),
-//     States.select(null, 'Selectionner qqchose', 'Bouton'),
-//     States.many_on({
-//       'timeout:hello' : () => [
-//         States.say("Vous n'avez pas voter à temps, c'est problématique !"),
-//       ],
-//       'confirm_selection_all' : () => [
-//         States.clearTimeout('hello'),
-//         States.say("Bien joué vous avez vôté à temps !"),
-//       ],
-//     }),
-//     States.reset(),
-//     States.on('timeout:hello', () => [States.say("TIMEOUT !")]),
-//   ];
-// }
-
 function defaultNightFlow() {
   return [
+    // ...mayorVoteFlow(),
+    // States.wait(1000000),
+
     States.set('night', true, States.GLOBAL),
     States.sleep(),
     States.say(""),
-    States.say(narration["Village - endormissement"]),
+    States.say(narrate("Village - endormissement")),
 
     States.wait(3),
     ...wolfFlow(),
     States.wait(3),
-    
+
     States.jumpif('after_witch', () => !isRolePresent('sorciere')),
     ...witchFlow(),
     States.wait(3),
@@ -253,7 +267,7 @@ function defaultNightFlow() {
     States.label('after_seer'),
 
     States.set('night', false, States.GLOBAL),
-    States.say(narration["Village - réveil"]),
+    States.say(narrate("Village - réveil")),
     States.wake(null),
     States.wait(2),
     ...announceDeathsFlow(),
@@ -265,13 +279,14 @@ function defaultNightFlow() {
 }
 
 async function startNightFlow() {
-  round++;
-  updateRoundDisplay(round);
-  saveRound();
   setNightUIMode(true);
   syncConnectedPlayers(true);
 
-  await runFlow(defaultNightFlow());
+  await runFlow([
+    States.set('round', (States.get('round', 0)) + 1, States.GLOBAL),
+    States.refresh(),
+    ...defaultNightFlow(),
+  ]);
 
   if (gameActive) {
     setStateForAll('reset');

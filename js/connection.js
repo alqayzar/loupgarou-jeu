@@ -4,7 +4,7 @@ const MSG = Object.freeze({
   SYNC:       'sync',        // host → all:   { players }  (full list, on every change)
   HOST_CLOSE: 'host_close',  // host → all:   room is closing
   KICK:       'kick',        // host → client: you have been removed
-  GAME_START:    'game_start',    // host → client: { role, players }
+  GAME_START:    'game_start',    // host → client: { players }
   GAME_END:      'game_end',      // host → all:   game is over, back to waiting room
   PLAYER_STATE:  'player_state',  // host → client: { state } — état d'un joueur ('sleep', 'wake', …)
   START_NIGHT:   'start_night',   // client → host: demande de lancer la nuit
@@ -16,9 +16,10 @@ const MSG = Object.freeze({
   SET_VAR:            'set_var',            // host → clients: { key, value } — variable globale
   TIMEOUT_START:      'timeout_start',      // host → clients: { ms } — démarre le timer global
   TIMEOUT_CLEAR:      'timeout_clear',      // host → clients: cache le timer
-  REVEAL:             'reveal',             // host → clients: { team, assignments } — mode récapitulatif
+  REVEAL:             'reveal',             // host → clients: { team } — mode récapitulatif
   REQUEST_SETTINGS:   'request_settings',   // client → host: demande tous les paramètres
   SETTINGS_SYNC:      'settings_sync',      // host → client: { narration, voiceConfig, roleSettings }
+  REFRESH_GRID:       'refresh_grid',        // host → clients: force le re-rendu de la grille
 });
 
 // Retire les images des objets joueurs avant envoi réseau.
@@ -92,10 +93,11 @@ function onHostReceive(conn, msg) {
       connections[conn.peer] = conn;
     
       if (gameActive) {
-        // Reconnexion pendant la partie — renvoyer le rôle et mettre à jour la liste connectée
-        const assignment = roleAssignments.find(a => a.id === conn.peer);
+        // Reconnexion pendant la partie — renvoyer les rôles et mettre à jour la liste connectée
+        const assignment = States.get('roles', []).find(a => a.id === conn.peer);
         if (assignment) {
-          conn.send({ type: MSG.GAME_START, role: assignment.role, players: _stripImages(connectedInGame) });
+          conn.send({ type: MSG.SET_VAR, key: 'roles', value: States.get('roles', []) });
+          conn.send({ type: MSG.GAME_START, players: _stripImages(connectedInGame) });
           _sendAvatars(conn, connectedInGame);
           const player = crystallizedPlayers.find(p => p.id === conn.peer);
           if (player && !connectedInGame.find(p => p.id === conn.peer)) {
@@ -214,7 +216,6 @@ function onClientReceive(msg) {
         renderGameGrid();
         const me = connectedInGame.find(p => p.id === peer?.id);
         if (me) updateNightBtn(me.wantStartNight ?? false);
-        if (msg.round != null) { round = msg.round; updateRoundDisplay(round); saveRound(); }
         if (msg.isNight != null) setNightUIMode(msg.isNight);
       } else {
         renderAll(msg.players);
@@ -253,10 +254,13 @@ function onClientReceive(msg) {
       hideCountdownTimer();
       break;
     case MSG.REVEAL:
-      applyReveal(msg.team, msg.assignments);
+      applyReveal(msg.team, States.get('roles', []));
       break;
     case MSG.SETTINGS_SYNC:
       applyHostSettings(msg);
+      break;
+    case MSG.REFRESH_GRID:
+      renderGameGrid();
       break;
   }
 }

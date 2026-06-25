@@ -1,26 +1,27 @@
 // ─── Game state ──────────────────────────────────────────────────────────────
 let gameActive          = false;
-let round               = 0;     // numéro de la nuit en cours (0 = partie non commencée)
 let myState             = null;   // état courant du joueur local
-let myRole              = null;
 let mySelection         = null;   // peerId de la carte sélectionnée par le joueur local
 let myConfirmed         = false;  // true si le joueur local a confirmé sa sélection
 let myAllowNone         = false;  // true si la sélection en cours autorise le vote blanc
 let crystallizedPlayers = [];   // host: liste complète figée au lancement
-let roleAssignments     = [];   // host: [{ id, role }]
 let connectedInGame     = [];   // in-memory: joueurs actuellement connectés en jeu
 let revealTeam          = null; // équipe mise en avant en mode récapitulatif ('loupgarou' | 'villageois' | null)
 let revealAssignments   = [];   // assignments reçus via States.reveal
+
+function getMyRole() {
+  const myId = role === 'host' ? 'host' : peer?.id;
+  return States.get('roles', []).find(a => a.id === myId)?.role || 'villageois';
+}
 
 // ─── Start game (host) ───────────────────────────────────────────────────────
 async function startGame() {
   resetVars();
   await loadVars();
-  crystallizedPlayers = [...players];
-  roleAssignments     = assignRoles(crystallizedPlayers);
-  myRole              = roleAssignments.find(a => a.id === 'host')?.role || 'villageois';
-  gameActive          = true;
-  connectedInGame     = [...crystallizedPlayers];
+  crystallizedPlayers  = [...players];
+  const assignments    = assignRoles(crystallizedPlayers);
+  gameActive           = true;
+  connectedInGame      = [...crystallizedPlayers];
 
   if (hostSpectator) {
     [connectedInGame, crystallizedPlayers].forEach(list => {
@@ -30,18 +31,15 @@ async function startGame() {
     applyState('dead');
   }
 
-  const session = await dbGet('game_session');
-  await dbSet('game_session', {
-    ...session,
-    gameActive: true,
-    crystallizedPlayers,
-    roleAssignments,
-    myRole,
-  });
+  await _setVar('roles', assignments);
 
-  for (const [peerId, conn] of Object.entries(connections)) {
-    const a = roleAssignments.find(a => a.id === peerId);
-    conn.send({ type: MSG.GAME_START, role: a?.role || 'villageois', players: _stripImages(connectedInGame) });
+  const session = await dbGet('game_session');
+  await dbSet('game_session', { ...session, gameActive: true, crystallizedPlayers });
+
+  const rolesMsg = { type: MSG.SET_VAR, key: 'roles', value: assignments };
+  for (const [, conn] of Object.entries(connections)) {
+    conn.send(rolesMsg);
+    conn.send({ type: MSG.GAME_START, players: _stripImages(connectedInGame) });
     _sendAvatars(conn, connectedInGame);
   }
 
@@ -60,14 +58,12 @@ async function endGame() {
   for (const conn of Object.values(connections)) conn.send({ type: MSG.GAME_END });
 
   const session = await dbGet('game_session');
-  const { gameActive: _a, crystallizedPlayers: _b, roleAssignments: _c, myRole: _d, myState: _e, myStateExtra: _f, ...rest } = session;
+  const { gameActive: _a, crystallizedPlayers: _b, myState: _e, myStateExtra: _f, ...rest } = session;
   await dbSet('game_session', rest);
 
   players             = crystallizedPlayers.map(({ dead: _, wantStartNight: __, selectedBy: ___, ...p }) => p);
   gameActive          = false;
-  myRole              = null;
   crystallizedPlayers = [];
-  roleAssignments     = [];
   connectedInGame     = [];
   revealTeam          = null;
   revealAssignments   = [];
@@ -79,12 +75,11 @@ async function endGame() {
 
 // ─── Game start received (guest) ─────────────────────────────────────────────
 async function onGameStart(msg) {
-  myRole          = msg.role;
   gameActive      = true;
   connectedInGame = msg.players ?? [...players];
 
   const session = await dbGet('game_session');
-  await dbSet('game_session', { ...session, gameActive: true, myRole });
+  await dbSet('game_session', { ...session, gameActive: true });
 
   const savedState = session?.myState || null;
   const savedExtra = session?.myStateExtra || {};
@@ -96,11 +91,10 @@ async function onGameStart(msg) {
 async function onGameEnd() {
   resetVars();
   const session = await dbGet('game_session');
-  const { gameActive: _a, myRole: _b, myState: _c, myStateExtra: _d, ...rest } = session;
+  const { gameActive: _a, myState: _c, myStateExtra: _d, ...rest } = session;
   await dbSet('game_session', rest);
 
   gameActive      = false;
-  myRole          = null;
   connectedInGame = [];
   exitGameMode();
 }
@@ -132,9 +126,10 @@ function revivePlayer(peerId) {
 // ─── Kill a player (host) ────────────────────────────────────────────────────
 function killPlayer(peerId) {
   const inGame = connectedInGame.find(p => p.id === peerId);
-  if (inGame) { inGame.dead = round; inGame.wantStartNight = false; }
+  const currentRound = States.get('round', 0);
+  if (inGame) { inGame.dead = currentRound; inGame.wantStartNight = false; }
   const inPlayers = players.find(p => p.id === peerId);
-  if (inPlayers) { inPlayers.dead = round; inPlayers.wantStartNight = false; }
+  if (inPlayers) { inPlayers.dead = currentRound; inPlayers.wantStartNight = false; }
   setStateForPlayer(peerId, 'dead');
   renderGameGrid();
   syncConnectedPlayers();
@@ -171,7 +166,7 @@ function updateNightBtn(active) {
 
 // ─── Sync connected players → all clients ────────────────────────────────────
 function syncConnectedPlayers(isNight) {
-  const msg = { type: MSG.SYNC, players: _stripImages(connectedInGame), round };
+  const msg = { type: MSG.SYNC, players: _stripImages(connectedInGame) };
   if (isNight !== undefined) msg.isNight = isNight;
   for (const conn of Object.values(connections)) conn.send(msg);
 }
@@ -217,34 +212,25 @@ function hideCountdownTimer() {
   document.getElementById('countdownTimer')?.classList.add('hidden');
 }
 
-function saveRound() {
-  dbGet('game_session').then(s => { if (s) dbSet('game_session', { ...s, round }); });
-}
-
 // ─── Restore on reload (host) ────────────────────────────────────────────────
 async function restoreGameStateHost(session) {
+  await loadVars();
   crystallizedPlayers = session.crystallizedPlayers || [];
-  roleAssignments     = session.roleAssignments     || [];
-  myRole              = session.myRole              || null;
-  round               = session.round               || 0;
   gameActive          = true;
   players             = [...crystallizedPlayers];
   connectedInGame     = crystallizedPlayers.filter(p => p.isHost);
   const hostPlayer    = crystallizedPlayers.find(p => p.isHost);
   if (hostPlayer?.dead != null) myState = 'dead';
   enterGameMode();
-  updateRoundDisplay(round);
 }
 
 // ─── Restore on reload (guest) ───────────────────────────────────────────────
-function restoreGameStateClient(session) {
-  myRole          = session.myRole  || null;
+async function restoreGameStateClient(session) {
+  await loadVars();
   myState         = session.myState || null;
-  round           = session.round   || 0;
   gameActive      = true;
   connectedInGame = [];
   enterGameMode();
-  updateRoundDisplay(round);
   if (session.myState) applyState(session.myState, session.myStateExtra || {});
 }
 
@@ -258,7 +244,6 @@ function enterGameMode() {
   const nightBtn = document.getElementById('startNightBtn');
   nightBtn.disabled = (myState === 'dead');
   updateNightBtn(false);
-  updateRoundDisplay(round);
 
   if (role === 'host') {
     document.getElementById('hostControls').classList.add('hidden');
@@ -274,7 +259,6 @@ function enterGameMode() {
 function exitGameMode() {
   cancelFlow();
   exitSleep();
-  round = 0;
   mySelection = null;
   myConfirmed = false;
   revealTeam        = null;
@@ -298,6 +282,8 @@ function exitGameMode() {
 // ─── Selection mode ───────────────────────────────────────────────────────────
 function handleCardSelect(targetId) {
   if (myState !== 'select') return;
+  const myId = role === 'host' ? 'host' : peer?.id;
+  if (States.get('select_disable_self') && targetId === myId) return;
   const newTarget = mySelection === targetId ? null : targetId;
   mySelection = newTarget;
   // setSelectionMode(newTarget !== null);
@@ -383,14 +369,15 @@ function applyReveal(team, assignments) {
 // ─── Render game grid ─────────────────────────────────────────────────────────
 function renderGameGrid() {
   const myId          = role === 'host' ? 'host' : peer?.id;
-  const isNight       = States.get('night') ?? false;
-  const nightKilledRound    = isNight ? round : null;
-  const canSeeKilledTonight = myRole === 'sorciere' && !States.get('sorciere_save_used');
+  const isNight       = States.get('night', false);
+  const nightKilledRound    = isNight ? States.get('round', 0) : null;
+  const canSeeKilledTonight = getMyRole() === 'sorciere' && !States.get('sorciere_save_used');
   renderPlayersGrid(
     document.getElementById('gamePlayersGrid'),
     connectedInGame,
     { canKick: false, onSelect: handleCardSelect, myId, showSelectionBadges: myState === 'select', nightKilledRound, canSeeKilledTonight, revealTeam, revealAssignments }
   );
+  updateRoundDisplay(States.get('round', 0));
   const x = connectedInGame.length;
   if (role === 'host') {
     const y = crystallizedPlayers.length;
@@ -478,7 +465,7 @@ function setStateForPlayer(peerId, state, extra = {}) {
 
 // ─── Role modal ───────────────────────────────────────────────────────────────
 function showRoleModal() {
-  const r = ROLES.find(r => r.id === myRole);
+  const r = ROLES.find(r => r.id === getMyRole());
   document.getElementById('roleRevealEmoji').textContent = r?.emoji || '?';
   document.getElementById('roleRevealName').textContent  = r?.label || '?';
   document.getElementById('roleRevealDesc').textContent  = r?.desc  || '';
