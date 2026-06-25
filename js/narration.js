@@ -51,7 +51,9 @@ const NARRATION_DEFAULTS = {
   ])),
 };
 
-let narration = { ...NARRATION_DEFAULTS };
+let narration      = { ...NARRATION_DEFAULTS };
+let currentProfile = 'default';
+let _profiles      = { default: {} };
 
 // Retourne le texte de narration pour la clé donnée, en substituant les variables {key}.
 function narrate(key, vars = {}) {
@@ -63,16 +65,55 @@ function narrate(key, vars = {}) {
 }
 
 async function loadNarrationSettings() {
-  const saved = await dbGet('narration_settings');
-  if (saved) Object.assign(narration, saved);
+  let profiles = await dbGet('narration_profiles');
+  if (!profiles) {
+    // Migration depuis l'ancien format clé unique
+    const legacy = await dbGet('narration_settings');
+    profiles = { default: legacy || {} };
+    await dbSet('narration_profiles', profiles);
+  }
+  _profiles = profiles;
+  const saved = await dbGet('narration_current') || 'default';
+  currentProfile = _profiles[saved] ? saved : 'default';
+  narration = { ...NARRATION_DEFAULTS };
+  Object.assign(narration, _profiles[currentProfile] || {});
 }
 
 async function saveNarrationSettings() {
-  await dbSet('narration_settings', { ...narration });
+  _profiles[currentProfile] = { ...narration };
+  await dbSet('narration_profiles', _profiles);
+}
+
+async function switchProfile(id) {
+  await saveNarrationSettings();
+  currentProfile = id;
+  await dbSet('narration_current', id);
+  narration = { ...NARRATION_DEFAULTS };
+  Object.assign(narration, _profiles[id] || {});
+}
+
+async function createProfile(name) {
+  _profiles[name] = { ...narration };  // copie du profil courant
+  currentProfile  = name;
+  await dbSet('narration_current', name);
+  await dbSet('narration_profiles', _profiles);
+}
+
+async function deleteProfile(id) {
+  if (id === 'default') return;
+  delete _profiles[id];
+  await dbSet('narration_profiles', _profiles);
+  if (currentProfile === id) {
+    currentProfile = 'default';
+    await dbSet('narration_current', 'default');
+    narration = { ...NARRATION_DEFAULTS };
+    Object.assign(narration, _profiles.default || {});
+  }
 }
 
 function resetNarrationSettings() {
-  for (const [k, v] of Object.entries(NARRATION_DEFAULTS)) narration[k] = v;
+  narration = { ...NARRATION_DEFAULTS };
+  _profiles[currentProfile] = {};
   saveNarrationSettings();
 }
 

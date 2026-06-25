@@ -783,6 +783,33 @@ input, button, textarea { font-family: inherit; }
   50%       { opacity: 0.45; }
 }
 
+.narration-profile-bar,
+.narration-profile-create {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding-bottom: 12px;
+  margin-bottom: 4px;
+  border-bottom: 1.5px solid var(--border-subtle);
+}
+
+.narration-profile-select,
+.narration-profile-name-input {
+  flex: 1;
+  padding: 4px 8px;
+  font-size: 0.8rem;
+}
+
+.narration-profile-btn {
+  padding: 2px 8px;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+.narration-profile-del {
+  color: var(--color-danger);
+}
+
 .narration-bulk-zone {
   display: flex;
   flex-direction: column;

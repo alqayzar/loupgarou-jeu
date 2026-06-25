@@ -481,6 +481,107 @@ function initNarrationSection() {
   const container = document.getElementById('narrationFields');
   const syncFns   = new Map();
 
+  // ── Sélecteur de profil ───────────────────────────────────────────────────
+  const profileBar = document.createElement('div');
+  profileBar.className = 'narration-profile-bar';
+
+  const profileSelect = document.createElement('select');
+  profileSelect.className = 'input narration-profile-select';
+
+  const addBtn = document.createElement('button');
+  addBtn.className = 'btn btn-ghost narration-profile-btn';
+  addBtn.textContent = '+';
+  addBtn.title = 'Nouveau profil (copie du courant)';
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'btn btn-ghost narration-profile-btn narration-profile-del';
+  delBtn.textContent = '🗑';
+  delBtn.title = 'Supprimer ce profil';
+
+  const createRow = document.createElement('div');
+  createRow.className = 'narration-profile-create hidden';
+
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.className = 'input narration-profile-name-input';
+  nameInput.placeholder = 'Nom du profil…';
+
+  const confirmBtn = document.createElement('button');
+  confirmBtn.className = 'btn btn-ghost narration-profile-btn';
+  confirmBtn.textContent = '✓';
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'btn btn-ghost narration-profile-btn';
+  cancelBtn.textContent = '✕';
+
+  createRow.appendChild(nameInput);
+  createRow.appendChild(confirmBtn);
+  createRow.appendChild(cancelBtn);
+
+  function refreshProfileBar() {
+    profileSelect.innerHTML = '';
+    for (const id of Object.keys(_profiles)) {
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = id;
+      opt.selected = id === currentProfile;
+      profileSelect.appendChild(opt);
+    }
+    delBtn.disabled = currentProfile === 'default';
+  }
+
+  refreshProfileBar();
+
+  profileSelect.addEventListener('change', async () => {
+    await switchProfile(profileSelect.value);
+    for (const fn of syncFns.values()) fn();
+    renderPlayerNarrations();
+  });
+
+  addBtn.addEventListener('click', () => {
+    profileBar.classList.add('hidden');
+    createRow.classList.remove('hidden');
+    nameInput.value = '';
+    nameInput.focus();
+  });
+
+  cancelBtn.addEventListener('click', () => {
+    createRow.classList.add('hidden');
+    profileBar.classList.remove('hidden');
+  });
+
+  async function doCreate() {
+    const name = nameInput.value.trim();
+    if (!name) return;
+    if (_profiles[name]) { showToast('Ce profil existe déjà'); return; }
+    await createProfile(name);
+    createRow.classList.add('hidden');
+    profileBar.classList.remove('hidden');
+    refreshProfileBar();
+    for (const fn of syncFns.values()) fn();
+    renderPlayerNarrations();
+  }
+
+  confirmBtn.addEventListener('click', doCreate);
+  nameInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  doCreate();
+    if (e.key === 'Escape') cancelBtn.click();
+  });
+
+  delBtn.addEventListener('click', async () => {
+    if (currentProfile === 'default') return;
+    await deleteProfile(currentProfile);
+    refreshProfileBar();
+    for (const fn of syncFns.values()) fn();
+    renderPlayerNarrations();
+  });
+
+  profileBar.appendChild(profileSelect);
+  profileBar.appendChild(addBtn);
+  profileBar.appendChild(delBtn);
+  container.appendChild(profileBar);
+  container.appendChild(createRow);
+
   // ── Zone d'import groupé ──────────────────────────────────────────────────
   const bulkZone  = document.createElement('div');
   bulkZone.className = 'narration-bulk-zone';
