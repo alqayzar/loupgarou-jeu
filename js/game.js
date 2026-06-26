@@ -8,6 +8,7 @@ let crystallizedPlayers = [];   // host: liste complète figée au lancement
 let connectedInGame     = [];   // in-memory: joueurs actuellement connectés en jeu
 let revealTeam          = null; // équipe mise en avant en mode récapitulatif ('loupgarou' | 'villageois' | null)
 let revealAssignments   = [];   // assignments reçus via States.reveal
+let revealPlayerIds     = null; // liste d'IDs spécifiques victorieux (State.reveal_players)
 
 function getMyRole() {
   const myId = role === 'host' ? 'host' : peer?.id;
@@ -31,19 +32,18 @@ async function startGame() {
     applyState('dead');
   }
 
-  await _setVar('roles', assignments);
+  await setVar('roles', assignments, States.GLOBAL);
 
   const session = await dbGet('game_session');
   await dbSet('game_session', { ...session, gameActive: true, crystallizedPlayers });
 
-  const rolesMsg = { type: MSG.SET_VAR, key: 'roles', value: assignments };
   for (const [, conn] of Object.entries(connections)) {
-    conn.send(rolesMsg);
     conn.send({ type: MSG.GAME_START, players: _stripImages(connectedInGame) });
     _sendAvatars(conn, connectedInGame);
   }
 
   enterGameMode();
+  await preGameFlow();
 }
 
 function updateRoundDisplay(r) {
@@ -67,6 +67,7 @@ async function endGame() {
   connectedInGame     = [];
   revealTeam          = null;
   revealAssignments   = [];
+  revealPlayerIds     = null;
 
   exitGameMode();
   renderAll();
@@ -235,6 +236,11 @@ async function restoreGameStateClient(session) {
 }
 
 // ─── Enter game mode ─────────────────────────────────────────────────────────
+window.addEventListener('beforeunload', (e) => {
+  if (!gameActive) return;
+  e.preventDefault();
+});
+
 function enterGameMode() {
   document.getElementById('waitingView').style.display = 'none';
   document.getElementById('gameView').style.display = '';
@@ -263,6 +269,8 @@ function exitGameMode() {
   myConfirmed = false;
   revealTeam        = null;
   revealAssignments = [];
+  revealPlayerIds   = null;
+  myState = null;
   setSelectionMode(false);
   setChoiceMode(false);
   document.getElementById('gameView').style.display = 'none';
@@ -360,9 +368,17 @@ function onChoiceClick(choiceIndex) {
 }
 
 // ─── Reveal mode ─────────────────────────────────────────────────────────────
-function applyReveal(team, assignments) {
+function applyReveal(team) {
   revealTeam        = team;
-  revealAssignments = assignments;
+  revealAssignments = States.get('roles', []);
+  revealPlayerIds   = null;
+  renderGameGrid();
+}
+
+function applyRevealPlayers(playerIds) {
+  revealPlayerIds   = playerIds;
+  revealAssignments = States.get('roles', []);
+  revealTeam        = null;
   renderGameGrid();
 }
 
@@ -375,7 +391,7 @@ function renderGameGrid() {
   renderPlayersGrid(
     document.getElementById('gamePlayersGrid'),
     connectedInGame,
-    { canKick: false, onSelect: handleCardSelect, myId, showSelectionBadges: myState === 'select', nightKilledRound, canSeeKilledTonight, revealTeam, revealAssignments }
+    { canKick: false, onSelect: handleCardSelect, myId, showSelectionBadges: myState === 'select', nightKilledRound, canSeeKilledTonight, revealTeam, revealAssignments, revealPlayerIds }
   );
   updateRoundDisplay(States.get('round', 0));
   const x = connectedInGame.length;
@@ -409,6 +425,7 @@ function applyState(state, extra = {}) {
       break;
     case 'sleep':
       if (extra.revived) document.getElementById('startNightBtn').disabled = false;
+      closeRoleModal();
       enterSleep();
       break;
     case 'select':
@@ -469,6 +486,20 @@ function showRoleModal() {
   document.getElementById('roleRevealEmoji').textContent = r?.emoji || '?';
   document.getElementById('roleRevealName').textContent  = r?.label || '?';
   document.getElementById('roleRevealDesc').textContent  = r?.desc  || '';
+
+  const coupleEl = document.getElementById('roleRevealCouple');
+  const myId     = role === 'host' ? 'host' : peer?.id;
+  const couple   = States.get('couple', []);
+  const inCouple = couple.includes(myId);
+  if (inCouple) {
+    const partnerId = couple.find(id => id !== myId);
+    const partner   = connectedInGame.find(p => p.id === partnerId);
+    coupleEl.textContent = `💘 Lié à ${partner?.username || '???'}`;
+    coupleEl.classList.remove('hidden');
+  } else {
+    coupleEl.classList.add('hidden');
+  }
+
   document.getElementById('roleModal').classList.remove('hidden');
 }
 

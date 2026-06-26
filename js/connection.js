@@ -17,9 +17,11 @@ const MSG = Object.freeze({
   TIMEOUT_START:      'timeout_start',      // host → clients: { ms } — démarre le timer global
   TIMEOUT_CLEAR:      'timeout_clear',      // host → clients: cache le timer
   REVEAL:             'reveal',             // host → clients: { team } — mode récapitulatif
+  REVEAL_PLAYERS:     'reveal_players',     // host → clients: { playerIds } — victoire de joueurs spécifiques
   REQUEST_SETTINGS:   'request_settings',   // client → host: demande tous les paramètres
-  SETTINGS_SYNC:      'settings_sync',      // host → client: { narration, voiceConfig, roleSettings }
+  SETTINGS_SYNC:      'settings_sync',      // host → client: { narration, narrationProfile, hostUsername, voiceConfig, roleSettings }
   REFRESH_GRID:       'refresh_grid',        // host → clients: force le re-rendu de la grille
+  SHOW_ROLE_BTN:      'show_role_btn',       // host → clients: { visible }
 });
 
 // Retire les images des objets joueurs avant envoi réseau.
@@ -83,9 +85,11 @@ function onHostReceive(conn, msg) {
       (async () => {
         conn.send({
           type: MSG.SETTINGS_SYNC,
-          narration:    { ...narration },
-          voiceConfig:  getVoiceConfig(),
-          roleSettings: (await dbGet('role_settings')) || {},
+          narration:        { ...narration },
+          narrationProfile: currentProfile,
+          hostUsername:     profile.username,
+          voiceConfig:      getVoiceConfig(),
+          roleSettings:     (await dbGet('role_settings')) || {},
         });
       })();
       break;
@@ -245,7 +249,7 @@ function onClientReceive(msg) {
       setTimeout(goHome, 1800);
       break;
     case MSG.SET_VAR:
-      _setVar(msg.key, msg.value);
+      setVar(msg.key, msg.value, States.LOCAL);
       break;
     case MSG.TIMEOUT_START:
       showCountdownTimer(msg.ms);
@@ -254,13 +258,19 @@ function onClientReceive(msg) {
       hideCountdownTimer();
       break;
     case MSG.REVEAL:
-      applyReveal(msg.team, States.get('roles', []));
+      applyReveal(msg.team);
+      break;
+    case MSG.REVEAL_PLAYERS:
+      applyRevealPlayers(msg.playerIds);
       break;
     case MSG.SETTINGS_SYNC:
       applyHostSettings(msg);
       break;
     case MSG.REFRESH_GRID:
       renderGameGrid();
+      break;
+    case MSG.SHOW_ROLE_BTN:
+      document.getElementById('showRoleBtn').classList.toggle('hidden', !msg.visible);
       break;
   }
 }

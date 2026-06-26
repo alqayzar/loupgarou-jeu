@@ -30,6 +30,26 @@ const ROLES = [
     maxFn: () => ROLES.find(r => r.id === 'loupgarou')?.count ?? 1,
     desc: 'Peut espionner les loups garous pendant leur phase de nuit, au risque d\'être démasquée.',
   },
+  {
+    id: 'cupidon', label: 'Cupidon', emoji: '💘', colorClass: 'role-red', type: 'villager',
+    locked: false, enabled: false, countable: true, count: 1, max: 1,
+    desc: 'La première nuit, Cupidon désigne deux liés. Si l\'un meurt, l\'autre meurt de chagrin.',
+  },
+  {
+    id: 'renard', label: 'Renard', emoji: '🦊', colorClass: 'role-amber', type: 'villager',
+    locked: false, enabled: false, countable: true, count: 1, max: 1,
+    desc: 'Chaque nuit, flaire 3 joueurs. S\'il y a un loup parmi eux, il garde son pouvoir. Sinon, il ne sera plus réveillé.',
+  },
+  {
+    id: 'ange', label: 'Ange', emoji: '👼', colorClass: 'role-lime', type: 'villager',
+    locked: false, enabled: false, countable: true, count: 1, max: 1,
+    desc: 'S\'il est éliminé lors du premier vote du village, l\'Ange remporte la partie seul.',
+  },
+  {
+    id: 'maire', label: 'Maire', emoji: '🎖️', colorClass: 'role-yellow', type: 'villager',
+    locked: false, enabled: true, countable: false, count: null, max: null, assignable: false,
+    desc: 'Élu par le village en début de partie via un vote. Sa voix compte double en cas d\'égalité.',
+  },
 ];
 
 let hostSpectator = false;
@@ -39,6 +59,8 @@ const scenarioSettings = {
   voteTimeoutEnabled:      false,
   voteTimeoutSeconds:      120,
   announceWitchPotions:    true,
+  witchKnowsDeaths:        true,
+  foxSniffCount:           3,
 };
 
 // Nombre de joueurs effectivement jouables (exclut le host s'il est spectateur)
@@ -124,7 +146,7 @@ function assignRoles(playerList) {
   const result    = [];
   let idx = 0;
 
-  for (const r of ROLES.filter(r => r.enabled && r.id !== 'villageois')) {
+  for (const r of ROLES.filter(r => r.enabled && r.id !== 'villageois' && r.assignable !== false)) {
     const count = r.countable ? r.count : 1;
     for (let i = 0; i < count && idx < shuffled.length; i++, idx++) {
       result.push({ id: shuffled[idx].id, role: r.id });
@@ -209,6 +231,11 @@ function renderRoles() {
       right.appendChild(minusBtn);
       right.appendChild(countEl);
       right.appendChild(plusBtn);
+    } else if (r.assignable === false) {
+      const electedEl = document.createElement('span');
+      electedEl.className = 'role-auto-label';
+      electedEl.textContent = 'Élu';
+      right.appendChild(electedEl);
     } else {
       const autoEl = document.createElement('span');
       autoEl.className = 'role-auto-label';

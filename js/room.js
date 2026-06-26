@@ -216,8 +216,13 @@ function closeHostProfileModal() {
 
 async function applyHostSettings(settings) {
   if (settings.narration) {
+    const profileName = `${settings.hostUsername || 'host'}:${settings.narrationProfile || 'default'}`;
+    _profiles[profileName] = { ...settings.narration };
+    currentProfile = profileName;
+    narration = { ...NARRATION_DEFAULTS };
     Object.assign(narration, settings.narration);
-    await dbSet('narration_settings', settings.narration);
+    await dbSet('narration_profiles', _profiles);
+    await dbSet('narration_current', profileName);
   }
   if (settings.voiceConfig) {
     setVoiceConfig(settings.voiceConfig);
@@ -275,6 +280,21 @@ function initSettings() {
   announceWitchPotionsCheck.addEventListener('change', () => {
     scenarioSettings.announceWitchPotions = announceWitchPotionsCheck.checked;
     saveRoleSettings();
+  });
+
+  const witchKnowsDeathsCheck = document.getElementById('witchKnowsDeathsCheck');
+  witchKnowsDeathsCheck.checked = scenarioSettings.witchKnowsDeaths;
+  witchKnowsDeathsCheck.addEventListener('change', () => {
+    scenarioSettings.witchKnowsDeaths = witchKnowsDeathsCheck.checked;
+    saveRoleSettings();
+  });
+
+  const foxSniffCountInput = document.getElementById('foxSniffCountInput');
+  foxSniffCountInput.value = scenarioSettings.foxSniffCount ?? 3;
+  foxSniffCountInput.addEventListener('input', () => {
+    const v = parseInt(foxSniffCountInput.value, 10);
+    if (v >= 1 && v <= 10) { scenarioSettings.foxSniffCount = v; saveRoleSettings(); }
+    else foxSniffCountInput.value = scenarioSettings.foxSniffCount ?? 3;
   });
 
   const voteTimeoutCheck = document.getElementById('voteTimeoutCheck');

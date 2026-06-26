@@ -14,15 +14,17 @@
  * }
  */
 
-function createPlayerCard(player, { canKick = false, onKick = null, onSelect = null, myId = null, showSelectionBadges = false, nightKilledRound = null, canSeeKilledTonight = false, revealTeam = null, revealAssignments = [], onHostClick = null } = {}) {
+function createPlayerCard(player, { canKick = false, onKick = null, onSelect = null, myId = null, showSelectionBadges = false, nightKilledRound = null, canSeeKilledTonight = false, revealTeam = null, revealAssignments = [], revealPlayerIds = null, onHostClick = null } = {}) {
   const killedTonight    = nightKilledRound != null && player.dead === nightKilledRound;
   const isDead           = player.dead != null && !killedTonight;
   const isSelected       = myId && (player.selectedBy || []).includes(myId);
   const revealAssignment = revealAssignments.find(a => a.id === player.id);
   const revealRoleData   = revealAssignment && typeof ROLES !== 'undefined' ? ROLES.find(r => r.id === revealAssignment.role) : null;
-  const isRevealTeam     = revealAssignment && (
-    revealTeam === 'loupgarou' ? revealAssignment.role === 'loupgarou' : revealAssignment.role !== 'loupgarou'
-  );
+  const isRevealTeam     = revealPlayerIds
+    ? revealPlayerIds.includes(player.id)
+    : revealAssignment && (
+        revealTeam === 'loupgarou' ? revealAssignment.role === 'loupgarou' : revealAssignment.role !== 'loupgarou'
+      );
 
   const card = document.createElement('div');
   card.id = `player-${player.id}`;
@@ -30,7 +32,7 @@ function createPlayerCard(player, { canKick = false, onKick = null, onSelect = n
     'player-card',
     player.colorClass,
     isDead                                    ? 'player-dead'           : '',
-    killedTonight && canSeeKilledTonight      ? 'player-killed-tonight' : '',
+    // killedTonight && canSeeKilledTonight      ? 'player-killed-tonight' : '',
     isSelected                                ? 'selected-by-me'        : '',
   ].filter(Boolean).join(' ');
 
@@ -103,12 +105,12 @@ function createPlayerCard(player, { canKick = false, onKick = null, onSelect = n
     card.appendChild(skull);
   }
 
-  if (killedTonight && canSeeKilledTonight && !States.get('night')) {
-    const badge = document.createElement('div');
-    badge.className = 'killed-tonight-badge';
-    badge.textContent = '🩸';
-    card.appendChild(badge);
-  }
+  // if (killedTonight && canSeeKilledTonight && !States.get('night')) {
+  //   const badge = document.createElement('div');
+  //   badge.className = 'killed-tonight-badge';
+  //   badge.textContent = '🩸';
+  //   card.appendChild(badge);
+  // }
 
   if (isRevealTeam) {
     const crown = document.createElement('div');

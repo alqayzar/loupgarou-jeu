@@ -264,6 +264,16 @@
             <span>Annoncer les potions de la sorcière <small>(révèle si elles sont disponibles)</small></span>
           </label>
           <label class="settings-checkbox-row">
+            <input type="checkbox" id="witchKnowsDeathsCheck" />
+            <span>La sorcière connaît les morts <small>(sinon elle sauve un joueur aléatoirement)</small></span>
+          </label>
+          <div class="settings-field">
+            <div class="settings-field-header">
+              <span>Joueurs flairés par le Renard</span>
+            </div>
+            <input type="number" class="input" id="foxSniffCountInput" min="1" max="10" step="1" value="3">
+          </div>
+          <label class="settings-checkbox-row">
             <input type="checkbox" id="voteTimeoutCheck" />
             <span>Limiter le vote du village dans le temps</span>
           </label>
@@ -402,6 +412,7 @@
       <div class="role-reveal-emoji" id="roleRevealEmoji"></div>
       <div class="role-reveal-name"  id="roleRevealName"></div>
       <p   class="role-reveal-desc"  id="roleRevealDesc"></p>
+      <div class="role-reveal-couple hidden" id="roleRevealCouple"></div>
       <button class="btn btn-ghost w-full" id="closeRoleBtn">Fermer</button>
     </div>
   </div>

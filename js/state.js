@@ -1,9 +1,14 @@
 // ─── Variable store ──────────────────────────────────────────────────────────
 const _vars = {};  // in-memory cache — source of truth for States.get()
 
-async function _setVar(key, value) {
+async function setVar(key, value, scope = States.GLOBAL) {
   _vars[key] = value;
   await dbSet('flow_vars', { ..._vars });
+
+  if (scope === States.GLOBAL) {
+    const msg = { type: MSG.SET_VAR, key, value };
+    for (const conn of Object.values(connections)) conn.send(msg);
+  }
 }
 
 function resetVars() {
@@ -59,7 +64,7 @@ function onConfirmSelectionReceived(selectorId, targetId) {
   if (!Object.prototype.hasOwnProperty.call(_confirmations, selectorId)) _confirmCount++;
   _confirmations[selectorId] = targetId;
   if (_selectCount > 0 && _confirmCount >= _selectCount) {
-    const targets = Object.values(_confirmations);
+    const targets = { ..._confirmations };
     _resetSelectionTracking();
     triggerEvent('confirm_selection_all', targets);
   }
@@ -104,7 +109,8 @@ const States = Object.freeze({
   run:          (fn)               => ({ type: 'run',    fn }),
   kill:         (peerId)           => ({ type: 'kill',   peerId }),
   revive:       (peerId)           => ({ type: 'revive', peerId }),
-  select:       (role, label, buttonText, allowNone = false) => ({ type: 'select', role, label, buttonText, allowNone }),
+  select:        (role, label, buttonText, allowNone = false) => ({ type: 'select',        role, label, buttonText, allowNone }),
+  select_player: (playerId, label, buttonText)               => ({ type: 'select_player', playerId, label, buttonText }),
   // Bloque le flow jusqu'à triggerEvent(name, data). handler(data) peut retourner des steps.
   on:           (name, handler)    => ({ type: 'on',     name, handler }),
   reset:        ()                 => ({ type: 'reset' }),
@@ -114,8 +120,10 @@ const States = Object.freeze({
   clearTimeout: (name)                      => ({ type: 'clearTimeout', name }),
   many_on:      (handlers)        => ({ type: 'many_on',      handlers }),
   conditional:  (condition, ifSteps, elseSteps = []) => ({ type: 'conditional', condition, ifSteps, elseSteps }),
-  reveal:       (team) => ({ type: 'reveal', team }),
-  refresh:      ()     => ({ type: 'refresh' }),
+  reveal:         (team)      => ({ type: 'reveal',         team }),
+  reveal_players: (playerIds) => ({ type: 'reveal_players', playerIds }),
+  refresh:       ()        => ({ type: 'refresh' }),
+  show_role_btn: (visible) => ({ type: 'show_role_btn', visible }),
   triggerEvent,
 });
 
@@ -209,15 +217,17 @@ async function _executeStep(step, labels) {
       break;
     }
     case 'set': {
-      await _setVar(step.key, step.value);
-      if (step.scope === States.GLOBAL) {
-        const msg = { type: MSG.SET_VAR, key: step.key, value: step.value };
-        for (const conn of Object.values(connections)) conn.send(msg);
-      }
+      await setVar(step.key, step.value, step.scope);
       break;
     }
     case 'select':
       _selectRole(step.role, step.label, step.buttonText, step.allowNone);
+      break;
+    case 'select_player':
+      _resetSelectionTracking();
+      clearAllSelections();
+      _selectCount = 1;
+      setStateForPlayer(step.playerId, 'select', { label: step.label, buttonText: step.buttonText });
       break;
     case 'reset':
       setStateForAll('reset');
@@ -242,12 +252,24 @@ async function _executeStep(step, labels) {
     case 'reveal': {
       const msg = { type: MSG.REVEAL, team: step.team };
       for (const conn of Object.values(connections)) conn.send(msg);
-      applyReveal(step.team, States.get('roles', []));
+      applyReveal(step.team);
+      break;
+    }
+    case 'reveal_players': {
+      const msg = { type: MSG.REVEAL_PLAYERS, playerIds: step.playerIds };
+      for (const conn of Object.values(connections)) conn.send(msg);
+      applyRevealPlayers(step.playerIds);
       break;
     }
     case 'refresh': {
       renderGameGrid();
       const msg = { type: MSG.REFRESH_GRID };
+      for (const conn of Object.values(connections)) conn.send(msg);
+      break;
+    }
+    case 'show_role_btn': {
+      document.getElementById('showRoleBtn').classList.toggle('hidden', !step.visible);
+      const msg = { type: MSG.SHOW_ROLE_BTN, visible: step.visible };
       for (const conn of Object.values(connections)) conn.send(msg);
       break;
     }

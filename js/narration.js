@@ -5,44 +5,69 @@
 
 const NARRATION_DEFAULTS = {
   // Nuit — général
-  "Village - endormissement":            "Le village s'endort, fermez les yeux !",
-  "Village - réveil":                    "Le village se réveille, ouvrez les yeux !",
+  "Village - endormissement":            "La nuit tombe sur le village. Tout le monde ferme les yeux.",
+  "Village - fermer yeux":               "Tout le monde ferme les yeux.",
+  "Village - réveil":                    "L'aube se lève. Villageois, ouvrez les yeux.",
 
   // Loups garous
-  "Loups garous - réveil":               "Loup garou, ouvrez les yeux !",
-  "Loups garous - sommeil":              "Loups garous, fermez les yeux !",
+  "Loups garous - réveil":               "Loups garoux ouvrez les yeux. Désignez votre proie.",
+  "Loups garous - sommeil":              "Loups garoux rendormez-vous.",
 
   // Sorcière
-  "Sorcière - réveil":                   "Sorcière, ouvrez les yeux !",
-  "Sorcière - proposition sauvetage":    "Voulez-vous sauver ce joueur ?",
-  "Sorcière - proposition poison":       "Voulez vous utiliser votre poison ?",
-  "Sorcière - sommeil":                  "Sorcière, fermez les yeux !",
+  "Sorcière - réveil":                   "La sorcière s'éveille dans l'obscurité.",
+  "Sorcière - proposition sauvetage":    "Souhaitez-vous utiliser votre potion de vie ?",
+  "Sorcière - proposition poison":       "Avez-vous une âme à condamner ce soir ?",
+  "Sorcière - sommeil":                  "La sorcière referme ses grimoires et se rendort.",
 
   // Voyante
-  "Voyante - réveil":                    "Voyante, ouvrez les yeux !",
-  "Voyante - sommeil":                   "Voyante, fermez les yeux !",
+  "Voyante - réveil":                    "La voyante scrute les ténèbres. Choisissez une âme à percer.",
+  "Voyante - sommeil":                   "La voyante garde ses secrets et se rendort.",
+
+  // Renard
+  "Renard - réveil":                    "Le Renard ouvre les yeux. Il va flairer les esprits.",
+  "Renard - résultat loup":             "L'un d'eux cache sa véritable nature. Votre flair est intact.",
+  "Renard - résultat aucun loup":       "Aucun loup parmi eux. Votre instinct vous abandonne.",
+  "Renard - sommeil":                   "Le Renard referme les yeux et se rendort.",
+
+  // Cupidon
+  "Cupidon - réveil":                    "Cupidon s'éveille. Il va tisser les liens du destin.",
+  "Cupidon - premier amoureux":          "Désignez le premier lié.",
+  "Cupidon - second amoureux":           "Désignez le second lié.",
+  "Cupidon - sommeil":                   "Cupidon referme ses ailes et se rendort.",
+
+  // Couple
+  "Village - consulter rôle":            "Tout le village se reveilles afin de prendre connaissance des rôles.",
+  "Couple - réveil":                     "Les liés ouvrent les yeux et se reconnaissent.",
+  "Couple - sommeil":                    "Les liés se rendorment, gardant ce secret au fond d'eux.",
+  "Lié - mort chagrin":                  "était lié.",
 
   // Vote du village
-  "Vote - ouverture":                    "Le village doit voter pour éliminer un suspect.",
-  "Vote - avertissement timeout":        "Attention votre temps est compté !",
-  "Vote - ouverture avec timer":         "Le village doit voter pour éliminer un suspect. {duration}",
-  "Vote - temps écoulé":                 "Le village n'a pas voté dans le temps imparti, aucun joueur n'est éliminé !",
-  "Vote - pas de majorité":              "Un vote majoritaire est requis !",
-  "Vote - vote blanc":                   "Le village a voté blanc. Personne n'est éliminé.",
-  "Vote - élimination":                  "est éliminé par le village !",
+  "Vote - ouverture":                    "Le village se réunit. Il est temps de désigner un coupable.",
+  "Vote - avertissement timeout":        "Le temps presse. Chaque seconde compte.",
+  "Vote - ouverture avec timer":         "Le village se réunit. {duration}",
+  "Vote - temps écoulé":                 "Le temps est écoulé. Le village n'a pu se décider. Personne n'est éliminé.",
+  "Vote - pas de majorité":              "Aucune majorité. Le village doit revoter.",
+  "Vote - vote blanc":                   "Le village choisit l'abstention. Personne n'est éliminé.",
+  "Vote - élimination":                  "est chassé du village !",
 
   // Annonces nocturnes
-  "Nuit - aucun mort":                   "Cette nuit, personne n'est mort.",
-  "Nuit - joueur tué":                   "a été tué cette nuit.",
+  "Nuit - aucun mort":                   "Le village respire. Cette nuit, personne n'a péri.",
+  "Nuit - joueur tué":                   "a été retrouvé sans vie à l'aube.",
 
   // Vote du maire
-  "Vote - maire":                        "Le village doit élire son maire !",
-  "Vote - maire égalité":                "Égalité ! Le village doit revoter pour le maire !",
-  "Vote - maire élu":                    "est élu maire du village !",
+  "Vote - maire":                        "Avant tout, le village doit choisir son maire.",
+  "Vote - maire égalité":                "Égalité ! Le village doit départager ses candidats.",
+  "Vote - maire élu":                    "est proclamé maire du village !",
+
+  // Succession du maire
+  "Maire - mort successeur":             "Le maire a quitté ce monde. Son dernier acte sera de désigner son successeur.",
+  "Maire - successeur désigné":          "reprend l'écharpe de maire.",
 
   // Fin de partie
-  "Victoire villageois":                 "Les villageois ont gagné ! Tous les loups garous sont morts !",
-  "Victoire loups garous":               "Les loups garous ont gagné ! Ils sont maintenant majoritaires !",
+  "Victoire ange":                        "L'Ange s'envole victorieux. Le village a condamné son sauveur.",
+  "Victoire villageois":                 "Les loups sont éliminés. Le village peut enfin dormir en paix.",
+  "Victoire loups garous":               "Les loups règnent sur le village. Les villageois ont succombé.",
+  "Victoire couple":                     "Les liés sont les derniers survivants. L'amour a triomphé.",
 
   // Annonce du rôle après élimination — une entrée par rôle, générée depuis ROLES
   ...Object.fromEntries(ROLES.map(r => [

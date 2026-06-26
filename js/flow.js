@@ -44,7 +44,7 @@ function wolfFlow() {
     States.say(narrate("Loups garous - réveil")),
     States.select('loupgarou', 'Selectionner une victime !', '🐺 Désigner'),
     States.on('confirm_selection_all', (targets) => {
-      const victim = getMostVoted(targets);
+      const victim = getMostVoted(Object.values(targets));
       return victim
         ? [States.kill(victim)]
         : [States.jump("begin_wolf_vote")];
@@ -61,19 +61,34 @@ function witchFlow() {
     States.run(() => {
       const deaths = getRoundDeaths();
       if (deaths.length === 0 || States.get('sorciere_save_used')) return [];
-      return [
-        ...(scenarioSettings.announceWitchPotions ? [States.say(narrate("Sorcière - proposition sauvetage"))] : []),
-        States.choice('sorciere', `Voulez-vous sauver ${deaths[0].username} ?`, ['💊 Sauver', 'Non']),
-        States.on('choice', ({ choiceIndex }) => {
-          if (choiceIndex === 0) {
+      const announce = scenarioSettings.announceWitchPotions ? [States.say(narrate("Sorcière - proposition sauvetage"))] : [];
+      if (scenarioSettings.witchKnowsDeaths) {
+        const choices = [...deaths.map(p => `💊 ${p.username}`), '❌ Aucun'];
+        return [
+          ...announce,
+          States.choice('sorciere', 'Souhaitez-vous utiliser votre potion de vie ?', choices),
+          States.on('choice', ({ choiceIndex }) => {
+            if (choiceIndex === choices.length - 1) return [States.refresh()];
             return [
               States.set('sorciere_save_used', true, States.GLOBAL),
-              States.revive(deaths[0].id),
+              States.revive(deaths[choiceIndex].id),
             ];
-          }
-          return [];
-        }),
-      ];
+          }),
+        ];
+      } else {
+        return [
+          ...announce,
+          States.choice('sorciere', 'Souhaitez-vous utiliser votre potion de vie ?', ['💊 Utiliser', '❌ Ne pas utiliser']),
+          States.on('choice', ({ choiceIndex }) => {
+            if (choiceIndex !== 0) return [States.refresh()];
+            const saved = deaths[Math.floor(Math.random() * deaths.length)];
+            return [
+              States.set('sorciere_save_used', true, States.GLOBAL),
+              States.revive(saved.id),
+            ];
+          }),
+        ];
+      }
     }),
     States.run(() => {
       if (States.get('sorciere_poison_used')) return [];
@@ -84,7 +99,7 @@ function witchFlow() {
           States.select('sorciere', 'Choisissez votre victime.', '☠️ Empoisonner'),
           States.on('confirm_selection_all', (targets) => [
             States.set('sorciere_poison_used', true, States.GLOBAL),
-            States.kill(targets[0]),
+            States.kill(Object.values(targets)[0]),
           ]),
         ]),
       ];
@@ -100,7 +115,7 @@ function seerFlow() {
     States.say(narrate("Voyante - réveil")),
     States.select('voyante', 'Choisissez un joueur à observer.', '🔮 Observer'),
     States.on('confirm_selection_all', (targets) => {
-      const assignment = States.get('roles', []).find(a => a.id === targets[0]);
+      const assignment = States.get('roles', []).find(a => a.id === Object.values(targets)[0]);
       const role = assignment?.role || 'inconnu';
       return [
         States.choice('voyante', `Ce joueur est : ${role}`, ['OK']),
@@ -125,9 +140,9 @@ function mayorVoteFlow() {
     States.say(narrate('Vote - maire')),
     States.label('begin_mayor_vote'),
     States.set('select_disable_self', true, States.GLOBAL),
-    States.select('alive', 'Votez pour élire le maire.', '👑 Élire'),
+    States.select('alive', 'Votez pour élire le maire.', '🎖️ Élire'),
     States.on('confirm_selection_all', (targets) => {
-      const mayor = getMostVoted(targets);
+      const mayor = getMostVoted(Object.values(targets));
       if (!mayor) return [
         States.reset(),
         States.say(narrate('Vote - maire égalité')),
@@ -142,7 +157,7 @@ function mayorVoteFlow() {
         States.refresh(),
       ];
     }),
-    States.set('select_disable_self', false),
+    States.set('select_disable_self', false, States.GLOBAL),
   ];
 }
 
@@ -167,7 +182,9 @@ function villageVoteFlow() {
         States.say(narrate('Vote - temps écoulé')),
       ],
       'confirm_selection_all': (targets) => {
-        const victim = getMostVoted(targets);
+        const maire = States.get('maire');
+        const votes = Object.entries(targets).flatMap(([sid, tid]) => maire && sid === maire ? [tid, tid] : [tid]);
+        const victim = getMostVoted(votes);
         if (!victim) return [
           States.clearTimeout('village_vote'),
           States.reset(),
@@ -188,7 +205,10 @@ function villageVoteFlow() {
           States.say(narrate(`Joueur - ${player?.username || 'Un joueur'}`)),
           States.say(narrate('Vote - élimination')),
           States.say(narrate(`Annonce rôle - ${role}`)),
+          angelWinFlow(victim),
           States.kill(victim),
+          coupleDieFlow(victim),
+          ...(victim === States.get('maire') ? mayorSuccessionFlow(victim) : []),
         ];
       },
     }),
@@ -198,8 +218,24 @@ function villageVoteFlow() {
 function checkWinFlow() {
   return [
     States.run(() => {
-      const alive     = connectedInGame.filter(p => p.dead == null);
-      const roles     = States.get('roles', []);
+      const alive  = connectedInGame.filter(p => p.dead == null);
+      const roles  = States.get('roles', []);
+      const couple = States.get('couple', []);
+
+      // Couple win — doit être vérifié avant la victoire des loups
+      if (
+        couple.length === 2 &&
+        alive.length === 2 &&
+        couple.every(id => alive.some(p => p.id === id))
+      ) {
+        gameActive = false;
+        return [
+          States.say(narrate('Victoire couple')),
+          States.reveal('villageois'),
+          States.jump('exit'),
+        ];
+      }
+
       const wolves    = alive.filter(p => roles.some(a => a.id === p.id && a.role === 'loupgarou'));
       const villagers = alive.filter(p => !roles.some(a => a.id === p.id && a.role === 'loupgarou'));
 
@@ -224,6 +260,56 @@ function checkWinFlow() {
   ];
 }
 
+function mayorSuccessionFlow(mayorId) {
+  return [
+    States.say(narrate('Maire - mort successeur')),
+    States.select_player(mayorId, 'Désignez votre successeur.', '🎖️ Désigner'),
+    States.on('confirm_selection_all', (targets) => {
+      const successor = Object.values(targets)[0];
+      const player = connectedInGame.find(p => p.id === successor);
+      return [
+        States.reset(),
+        States.say(narrate(`Joueur - ${player?.username || 'Un joueur'}`)),
+        States.say(narrate('Vote - maire élu')),
+        States.set('maire', successor, States.GLOBAL),
+        States.refresh(),
+      ];
+    }),
+  ];
+}
+
+function angelWinFlow(victimId) {
+  return States.run(() => {
+    const isAngel = States.get('roles', []).some(a => a.id === victimId && a.role === 'ange');
+    if (!isAngel || States.get('round', 0) !== 1) return [];
+    gameActive = false;
+    return [
+      States.say(narrate('Victoire ange')),
+      States.reveal_players([victimId]),
+      States.jump('exit'),
+    ];
+  });
+}
+
+function coupleDieFlow(victimId) {
+  return [
+    States.run(() => {
+      const couple = States.get('couple', []);
+      if (!couple.includes(victimId)) return [];
+      const partnerId = couple.find(id => id !== victimId);
+      const partner   = connectedInGame.find(p => p.id === partnerId && p.dead == null);
+      if (!partner) return [];
+      const role = States.get('roles', []).find(a => a.id === partnerId)?.role || 'inconnu';
+      return [
+        States.say(narrate(`Joueur - ${partner.username}`)),
+        States.say(narrate('Lié - mort chagrin')),
+        States.say(narrate(`Annonce rôle - ${role}`)),
+        States.kill(partnerId),
+      ];
+    })
+  ];
+}
+
 function announceDeathsFlow() {
   return [
     States.refresh(),
@@ -236,25 +322,136 @@ function announceDeathsFlow() {
           States.say(narrate(`Joueur - ${p.username}`)),
           States.say(narrate('Nuit - joueur tué')),
           States.say(narrate(`Annonce rôle - ${role}`)),
+          ...coupleDieFlow(p.id)
         ];
       });
     }),
+    States.run(() => {
+      const mayorId = States.get('maire');
+      if (!mayorId) return [];
+      const deaths = getRoundDeaths();
+      if (!deaths.find(p => p.id === mayorId)) return [];
+      return mayorSuccessionFlow(mayorId);
+    }),
+  ];
+}
+
+function foxFlow() {
+  const count = Math.max(1, scenarioSettings.foxSniffCount ?? 3);
+
+  const pickSteps = [];
+  for (let i = 1; i <= count; i++) {
+    pickSteps.push(
+      States.label(`fox_pick_${i}`),
+      States.run(() => {
+        const prevIds = Array.from({ length: i - 1 }, (_, k) => States.get(`renard_pick_${k + 1}`));
+        const names   = prevIds.map(id => connectedInGame.find(p => p.id === id)?.username).filter(Boolean);
+        const label   = names.length === 0
+          ? `Vous devez selectionner ${count} joueurs. Désigner le premier joueur.`
+          : `Désigner un joueur avec ${names.join(', ')}.`;
+        return [States.select('renard', label, '🦊 Flairer')];
+      }),
+      States.on('confirm_selection_all', (targets) => {
+        const pick = Object.values(targets)[0];
+        for (let j = 1; j < i; j++) {
+          if (pick === States.get(`renard_pick_${j}`)) return [States.jump(`fox_pick_${i}`)];
+        }
+        return [States.set(`renard_pick_${i}`, pick, States.LOCAL)];
+      }),
+    );
+  }
+
+  return [
+    States.say(narrate('Renard - réveil')),
+    ...pickSteps,
+    States.run(() => {
+      const picks   = Array.from({ length: count }, (_, k) => States.get(`renard_pick_${k + 1}`));
+      const roles   = States.get('roles', []);
+      const hasWolf = picks.some(id => roles.find(a => a.id === id)?.role === 'loupgarou');
+      const key     = hasWolf ? 'Renard - résultat loup' : 'Renard - résultat aucun loup';
+      return [
+        ...(hasWolf ? [] : [States.set('renard_power_lost', true, States.GLOBAL)]),
+        States.choice('renard', narrate(key), ['OK']),
+        States.on('choice', () => []),
+      ];
+    }),
+    States.say(narrate('Renard - sommeil')),
+    States.sleep(),
+  ];
+}
+
+function cupidFlow() {
+  return [
+    States.say(narrate('Cupidon - réveil')),
+    States.label('cupidon_first_pick'),
+    States.say(narrate('Cupidon - premier amoureux')),
+    States.select('cupidon', 'Choisissez le premier lié.', '💘 Lier'),
+    States.on('confirm_selection_all', (targets) => {
+      const peerIdA = Object.values(targets)[0];
+      return [
+        // States.reset(),
+        States.set('cupidon_first', peerIdA, States.LOCAL),
+      ];
+    }),
+    States.label('cupidon_second_pick'),
+    States.run(() => [
+      States.say(narrate('Cupidon - second amoureux')),
+      States.select('cupidon', 'Choisissez le second lié.', '💘 Lier'),
+      States.on('confirm_selection_all', (targets) => {
+        const peerIdA = States.get('cupidon_first');
+        const peerIdB = Object.values(targets)[0];
+        if (peerIdB === peerIdA) return [
+          States.reset(),
+          States.jump('cupidon_second_pick'),
+        ];
+        return [
+          // States.reset(),
+          States.set('couple', [peerIdA, peerIdB], States.GLOBAL),
+        ];
+      }),
+    ]),
+    States.say(narrate('Cupidon - sommeil')),
+    States.sleep(),
+    States.wake(null),
+    States.show_role_btn(true),
+    States.say(narrate('Village - consulter rôle')),
+    States.wait(5),
+    States.show_role_btn(false),
+    States.sleep(),
+    States.say(narrate('Village - fermer yeux')),
+    States.wait(3),
+    States.run(() => {
+      const couple = States.get('couple', []);
+      for (const id of couple) setStateForPlayer(id, 'wake', {});
+      return [];
+    }),
+    States.say(narrate('Couple - réveil')),
+    States.wait(4),
+    States.say(narrate('Couple - sommeil')),
+    States.sleep(),
   ];
 }
 
 function defaultNightFlow() {
   return [
-    // ...mayorVoteFlow(),
-    // States.wait(1000000),
-
     States.set('night', true, States.GLOBAL),
     States.sleep(),
     States.say(""),
     States.say(narrate("Village - endormissement")),
 
+    States.jumpif('after_cupid', () => States.get('round', 0) !== 1 || !isRolePresent('cupidon')),
     States.wait(3),
-    ...wolfFlow(),
+    ...cupidFlow(),
+    States.label('after_cupid'),
+
+    States.jumpif('after_fox', () => !isRolePresent('renard') || States.get('renard_power_lost')),
+    ...foxFlow(),
     States.wait(3),
+    States.label('after_fox'),
+
+    // States.wait(3),
+    // ...wolfFlow(),
+    // States.wait(3),
 
     States.jumpif('after_witch', () => !isRolePresent('sorciere')),
     ...witchFlow(),
@@ -267,6 +464,7 @@ function defaultNightFlow() {
     States.label('after_seer'),
 
     States.set('night', false, States.GLOBAL),
+    States.refresh(),
     States.say(narrate("Village - réveil")),
     States.wake(null),
     States.wait(2),
@@ -286,6 +484,26 @@ async function startNightFlow() {
     States.set('round', (States.get('round', 0)) + 1, States.GLOBAL),
     States.refresh(),
     ...defaultNightFlow(),
+  ]);
+
+  if (gameActive) {
+    setStateForAll('reset');
+    setNightUIMode(false);
+    syncConnectedPlayers(false);
+  }
+}
+
+// ─── Pre-game flow ────────────────────────────────────────────────────────────
+// Appelé juste après le lancement du jeu, avant la première nuit.
+// Retourner [] pour désactiver.
+async function preGameFlow() {
+  if (!ROLES.find(r => r.id === 'maire')?.enabled) return;
+
+  setNightUIMode(true);
+  syncConnectedPlayers(true);
+
+  await runFlow([
+    ...mayorVoteFlow()
   ]);
 
   if (gameActive) {
