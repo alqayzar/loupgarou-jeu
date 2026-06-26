@@ -449,9 +449,9 @@ function defaultNightFlow() {
     States.wait(3),
     States.label('after_fox'),
 
-    // States.wait(3),
-    // ...wolfFlow(),
-    // States.wait(3),
+    States.wait(3),
+    ...wolfFlow(),
+    States.wait(3),
 
     States.jumpif('after_witch', () => !isRolePresent('sorciere')),
     ...witchFlow(),

@@ -255,33 +255,41 @@
           <span class="section-toggle-icon rotated" id="scenarioToggleIcon">▼</span>
         </button>
         <div class="section-content" id="scenarioContent">
-          <label class="settings-checkbox-row">
-            <input type="checkbox" id="allowBlankVoteCheck" />
-            <span>Vote blanc autorisé <small>(vote du village)</small></span>
-          </label>
-          <label class="settings-checkbox-row">
-            <input type="checkbox" id="announceWitchPotionsCheck" />
-            <span>Annoncer les potions de la sorcière <small>(révèle si elles sont disponibles)</small></span>
-          </label>
-          <label class="settings-checkbox-row">
-            <input type="checkbox" id="witchKnowsDeathsCheck" />
-            <span>La sorcière connaît les morts <small>(sinon elle sauve un joueur aléatoirement)</small></span>
-          </label>
-          <div class="settings-field">
-            <div class="settings-field-header">
-              <span>Joueurs flairés par le Renard</span>
-            </div>
-            <input type="number" class="input" id="foxSniffCountInput" min="1" max="10" step="1" value="3">
+          <div class="settings-toggle-row">
+            <span class="settings-toggle-label">Vote blanc autorisé<small>Vote du village</small></span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="allowBlankVoteCheck">
+              <span class="toggle-switch-track"></span>
+            </label>
           </div>
-          <label class="settings-checkbox-row">
-            <input type="checkbox" id="voteTimeoutCheck" />
-            <span>Limiter le vote du village dans le temps</span>
-          </label>
-          <div class="settings-field" id="voteTimeoutField">
-            <div class="settings-field-header">
-              <span>Durée du vote (secondes)</span>
-            </div>
-            <input type="number" class="input" id="voteTimeoutInput" min="10" max="3600" step="1" value="120">
+          <div class="settings-toggle-row">
+            <span class="settings-toggle-label">Annoncer les potions de la sorcière<small>Révèle si elles sont disponibles</small></span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="announceWitchPotionsCheck">
+              <span class="toggle-switch-track"></span>
+            </label>
+          </div>
+          <div class="settings-toggle-row">
+            <span class="settings-toggle-label">La sorcière connaît les morts<small>Sinon, elle sauve un joueur aléatoirement</small></span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="witchKnowsDeathsCheck">
+              <span class="toggle-switch-track"></span>
+            </label>
+          </div>
+          <div class="settings-number-row">
+            <span class="settings-number-label">Joueurs flairés par le Renard</span>
+            <input type="number" class="settings-number-input" id="foxSniffCountInput" min="1" max="10" step="1" value="3">
+          </div>
+          <div class="settings-toggle-row">
+            <span class="settings-toggle-label">Limiter le vote du village dans le temps</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="voteTimeoutCheck">
+              <span class="toggle-switch-track"></span>
+            </label>
+          </div>
+          <div class="settings-number-row hidden" id="voteTimeoutField">
+            <span class="settings-number-label">Durée du vote (secondes)</span>
+            <input type="number" class="settings-number-input" id="voteTimeoutInput" min="10" max="3600" step="1" value="120">
           </div>
         </div>
       </div>
@@ -293,10 +301,13 @@
           <span class="section-toggle-icon rotated" id="hostToggleIcon">▼</span>
         </button>
         <div class="section-content" id="hostContent">
-          <label class="settings-checkbox-row">
-            <input type="checkbox" id="hostSpectatorCheck" />
-            <span>Spectateur <small>(non jouable)</small></span>
-          </label>
+          <div class="settings-toggle-row">
+            <span class="settings-toggle-label">Spectateur<small>Non jouable</small></span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="hostSpectatorCheck">
+              <span class="toggle-switch-track"></span>
+            </label>
+          </div>
         </div>
       </div>
 

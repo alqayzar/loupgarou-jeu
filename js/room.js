@@ -291,7 +291,7 @@ function initSettings() {
 
   const foxSniffCountInput = document.getElementById('foxSniffCountInput');
   foxSniffCountInput.value = scenarioSettings.foxSniffCount ?? 3;
-  foxSniffCountInput.addEventListener('input', () => {
+  foxSniffCountInput.addEventListener('change', () => {
     const v = parseInt(foxSniffCountInput.value, 10);
     if (v >= 1 && v <= 10) { scenarioSettings.foxSniffCount = v; saveRoleSettings(); }
     else foxSniffCountInput.value = scenarioSettings.foxSniffCount ?? 3;
