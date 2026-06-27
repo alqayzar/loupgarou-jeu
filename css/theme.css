@@ -23,6 +23,7 @@
   --candy-pink:   #ff4081;
   --candy-red:    #ff1744;
   --candy-amber:  #ffab40;
+  --candy-green:  #69f0ae;
 
   /* Primary UI */
   --color-primary:       #7c4dff;
@@ -1099,6 +1100,7 @@ input, button, textarea { font-family: inherit; }
 .role-red    { --role-bg: var(--candy-red); }
 .role-lime   { --role-bg: var(--candy-lime); }
 .role-amber  { --role-bg: var(--candy-amber); }
+.role-green  { --role-bg: var(--candy-green); }
 
 /* ==========================================================
    Scrollbar

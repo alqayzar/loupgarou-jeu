@@ -46,6 +46,11 @@ const ROLES = [
     desc: 'S\'il est éliminé lors du premier vote du village, l\'Ange remporte la partie seul.',
   },
   {
+    id: 'chasseur', label: 'Chasseur', emoji: '🏹', colorClass: 'role-green', type: 'villager',
+    locked: false, enabled: false, countable: true, count: 1, max: 1,
+    desc: 'Lorsqu\'il meurt, il tire une dernière flèche et entraîne un joueur de son choix dans la mort.',
+  },
+  {
     id: 'maire', label: 'Maire', emoji: '🎖️', colorClass: 'role-yellow', type: 'villager',
     locked: false, enabled: true, countable: false, count: null, max: null, assignable: false,
     desc: 'Élu par le village en début de partie via un vote. Sa voix compte double en cas d\'égalité.',

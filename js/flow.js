@@ -208,6 +208,7 @@ function villageVoteFlow() {
           angelWinFlow(victim),
           States.kill(victim),
           coupleDieFlow(victim),
+          hunterFlow(victim),
           ...(victim === States.get('maire') ? mayorSuccessionFlow(victim) : []),
         ];
       },
@@ -291,6 +292,30 @@ function angelWinFlow(victimId) {
   });
 }
 
+function hunterFlow(hunterId) {
+  return States.run(() => {
+    const isHunter = States.get('roles', []).some(a => a.id === hunterId && a.role === 'chasseur');
+    if (!isHunter) return [];
+    return [
+      States.say(narrate('Chasseur - pouvoir')),
+      States.select_player(hunterId, 'Désignez un joueur à emporter avec vous.', '🏹 Viser'),
+      States.on('confirm_selection_all', (targets) => {
+        const victim = Object.values(targets)[0];
+        const player = connectedInGame.find(p => p.id === victim);
+        const role   = States.get('roles', []).find(a => a.id === victim)?.role || 'inconnu';
+        return [
+          States.reset(),
+          States.say(narrate(`Joueur - ${player?.username || 'Un joueur'}`)),
+          States.say(narrate('Chasseur - tir')),
+          States.say(narrate(`Annonce rôle - ${role}`)),
+          States.kill(victim),
+          ...coupleDieFlow(victim),
+        ];
+      }),
+    ];
+  });
+}
+
 function coupleDieFlow(victimId) {
   return [
     States.run(() => {
@@ -322,7 +347,8 @@ function announceDeathsFlow() {
           States.say(narrate(`Joueur - ${p.username}`)),
           States.say(narrate('Nuit - joueur tué')),
           States.say(narrate(`Annonce rôle - ${role}`)),
-          ...coupleDieFlow(p.id)
+          ...coupleDieFlow(p.id),
+          hunterFlow(p.id),
         ];
       });
     }),
@@ -389,27 +415,23 @@ function cupidFlow() {
     States.on('confirm_selection_all', (targets) => {
       const peerIdA = Object.values(targets)[0];
       return [
-        // States.reset(),
         States.set('cupidon_first', peerIdA, States.LOCAL),
       ];
     }),
     States.label('cupidon_second_pick'),
-    States.run(() => [
-      States.say(narrate('Cupidon - second amoureux')),
-      States.select('cupidon', 'Choisissez le second lié.', '💘 Lier'),
-      States.on('confirm_selection_all', (targets) => {
-        const peerIdA = States.get('cupidon_first');
-        const peerIdB = Object.values(targets)[0];
-        if (peerIdB === peerIdA) return [
-          States.reset(),
-          States.jump('cupidon_second_pick'),
-        ];
-        return [
-          // States.reset(),
-          States.set('couple', [peerIdA, peerIdB], States.GLOBAL),
-        ];
-      }),
-    ]),
+    States.say(narrate('Cupidon - second amoureux')),
+    States.select('cupidon', 'Choisissez le second lié.', '💘 Lier'),
+    States.on('confirm_selection_all', (targets) => {
+      const peerIdA = States.get('cupidon_first');
+      const peerIdB = Object.values(targets)[0];
+      if (peerIdB === peerIdA) return [
+        States.say(narrate('Cupidon - même joueur')),
+        States.jump('cupidon_second_pick'),
+      ];
+      return [
+        States.set('couple', [peerIdA, peerIdB], States.GLOBAL),
+      ];
+    }),
     States.say(narrate('Cupidon - sommeil')),
     States.sleep(),
     States.wake(null),
@@ -426,7 +448,11 @@ function cupidFlow() {
       return [];
     }),
     States.say(narrate('Couple - réveil')),
-    States.wait(4),
+    States.run(() => {
+      const couple = States.get('couple', []);
+      for (const id of couple) setStateForPlayer(id, 'choice', { label: 'Vous vous êtes reconnus.', choices: ['✓ OK'] });
+      return [States.on('choice', () => [])];
+    }),
     States.say(narrate('Couple - sommeil')),
     States.sleep(),
   ];
@@ -449,9 +475,9 @@ function defaultNightFlow() {
     States.wait(3),
     States.label('after_fox'),
 
-    States.wait(3),
-    ...wolfFlow(),
-    States.wait(3),
+    // States.wait(3),
+    // ...wolfFlow(),
+    // States.wait(3),
 
     States.jumpif('after_witch', () => !isRolePresent('sorciere')),
     ...witchFlow(),

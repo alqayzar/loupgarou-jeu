@@ -29,10 +29,15 @@ const NARRATION_DEFAULTS = {
   "Renard - résultat aucun loup":       "Aucun loup parmi eux. Votre instinct vous abandonne.",
   "Renard - sommeil":                   "Le Renard referme les yeux et se rendort.",
 
+  // Chasseur
+  "Chasseur - pouvoir":                  "Le Chasseur tombe, mais son arme reste chargée. Désignez celui qui partira avec vous.",
+  "Chasseur - tir":                      "est abattu par la dernière flèche du Chasseur.",
+
   // Cupidon
   "Cupidon - réveil":                    "Cupidon s'éveille. Il va tisser les liens du destin.",
   "Cupidon - premier amoureux":          "Désignez le premier lié.",
   "Cupidon - second amoureux":           "Désignez le second lié.",
+  "Cupidon - même joueur":               "Ce joueur est déjà désigné. Sélectionnez un autre joueur.",
   "Cupidon - sommeil":                   "Cupidon referme ses ailes et se rendort.",
 
   // Couple
