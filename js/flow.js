@@ -46,16 +46,17 @@ function wolfFlow() {
     States.on('confirm_selection_all', (targets) => {
       const victim = getMostVoted(Object.values(targets));
       if (!victim) return [States.jump("begin_wolf_vote")];
-      const protectedId = States.get('salvateur_protected');
-      return victim === protectedId ? [] : [States.kill(victim)];
+      return [States.kill(victim)];
     }),
     States.say(narrate("Loups garous - sommeil")),
     States.sleep(),
+    States.wait(3),
   ];
 }
 
 function avocatFlow() {
   return [
+    States.jumpif('after_avocat', () => !isRolePresent('avocat')),
     States.say(narrate("Avocat - réveil")),
     States.label('avocat_pick'),
     States.select('avocat', 'Choisissez un joueur à immuniser du vote.', '⚖️ Défendre'),
@@ -71,11 +72,14 @@ function avocatFlow() {
     }),
     States.say(narrate("Avocat - sommeil")),
     States.sleep(),
+    States.wait(3),
+    States.label('after_avocat'),
   ];
 }
 
 function salvateurFlow() {
   return [
+    States.jumpif('after_salvateur', () => !isRolePresent('salvateur')),
     States.say(narrate("Salvateur - réveil")),
     States.label('salvateur_pick'),
     States.select('salvateur', 'Choisissez un joueur à protéger.', '🛡️ Protéger'),
@@ -91,11 +95,26 @@ function salvateurFlow() {
     }),
     States.say(narrate("Salvateur - sommeil")),
     States.sleep(),
+    States.wait(3),
+    States.label('after_salvateur'),
+  ];
+}
+
+function salvateurReviveFlow() {
+  return [
+    States.run(() => {
+      const protectedId = States.get('salvateur_protected');
+      if (!protectedId) return [];
+      const isKilled = getRoundDeaths().some(p => p.id === protectedId);
+      if (!isKilled) return [];
+      return [States.revive(protectedId)];
+    }),
   ];
 }
 
 function witchFlow() {
   return [
+    States.jumpif('after_witch', () => !isRolePresent('sorciere')),
     // States.wake('sorciere'),
     States.say(narrate("Sorcière - réveil")),
     States.run(() => {
@@ -146,11 +165,14 @@ function witchFlow() {
     }),
     States.say(narrate("Sorcière - sommeil")),
     States.sleep(),
+    States.wait(3),
+    States.label('after_witch'),
   ];
 }
 
 function seerFlow() {
   return [
+    States.jumpif('after_seer', () => !isRolePresent('voyante')),
     States.wake('voyante'),
     States.say(narrate("Voyante - réveil")),
     States.select('voyante', 'Choisissez un joueur à observer.', '🔮 Observer'),
@@ -164,6 +186,8 @@ function seerFlow() {
     }),
     States.say(narrate("Voyante - sommeil")),
     States.sleep(),
+    States.wait(3),
+    States.label('after_seer'),
   ];
 }
 
@@ -434,6 +458,7 @@ function foxFlow() {
   }
 
   return [
+    States.jumpif('after_fox', () => !isRolePresent('renard') || States.get('renard_power_lost')),
     States.say(narrate('Renard - réveil')),
     ...pickSteps,
     States.run(() => {
@@ -449,11 +474,14 @@ function foxFlow() {
     }),
     States.say(narrate('Renard - sommeil')),
     States.sleep(),
+    States.wait(3),
+    States.label('after_fox'),
   ];
 }
 
 function cupidFlow() {
   return [
+    States.jumpif('after_cupid', () => States.get('round', 0) !== 1 || !isRolePresent('cupidon')),
     States.say(narrate('Cupidon - réveil')),
     States.label('cupidon_first_pick'),
     States.say(narrate('Cupidon - premier amoureux')),
@@ -481,10 +509,12 @@ function cupidFlow() {
     States.say(narrate('Cupidon - sommeil')),
     States.sleep(),
     States.wake(null),
-    States.show_role_btn(true),
     States.say(narrate('Village - consulter rôle')),
-    States.wait(5),
-    States.show_role_btn(false),
+    States.choice(null, 'Consultez votre rôle, puis rendormez-vous.', ['Se rendormir', '{roleBtn}']),
+    States.run(() => {
+      const n = connectedInGame.filter(p => p.dead == null).length;
+      return Array.from({ length: n }, () => States.on('choice', () => []));
+    }),
     States.sleep(),
     States.say(narrate('Village - fermer yeux')),
     States.wait(3),
@@ -499,8 +529,10 @@ function cupidFlow() {
       for (const id of couple) setStateForPlayer(id, 'choice', { label: 'Vous vous êtes reconnus.', choices: ['✓ OK'] });
       return [States.on('choice', () => [])];
     }),
-    States.say(narrate('Couple - sommeil')),
     States.sleep(),
+    States.say(narrate('Couple - sommeil')),
+    States.wait(3),
+    States.label('after_cupid'),
   ];
 }
 
@@ -510,43 +542,20 @@ function defaultNightFlow() {
     States.sleep(),
     States.say(""),
     States.say(narrate("Village - endormissement")),
-
-    States.jumpif('after_cupid', () => States.get('round', 0) !== 1 || !isRolePresent('cupidon')),
     States.wait(3),
+
     ...cupidFlow(),
-    States.label('after_cupid'),
-
-    States.jumpif('after_fox', () => !isRolePresent('renard') || States.get('renard_power_lost')),
     ...foxFlow(),
-    States.wait(3),
-    States.label('after_fox'),
-
-    States.jumpif('after_seer', () => !isRolePresent('voyante')),
     ...seerFlow(),
-    States.wait(3),
-    States.label('after_seer'),
-
-    States.jumpif('after_salvateur', () => !isRolePresent('salvateur')),
     ...salvateurFlow(),
-    States.wait(3),
-    States.label('after_salvateur'),
-
     ...wolfFlow(),
-    States.wait(3),
-
-    States.jumpif('after_witch', () => !isRolePresent('sorciere')),
     ...witchFlow(),
-    States.wait(3),
-    States.label('after_witch'),
-
-    States.jumpif('after_avocat', () => !isRolePresent('avocat')),
     ...avocatFlow(),
-    States.wait(3),
-    States.label('after_avocat'),
 
     States.set('night', false, States.GLOBAL),
     States.refresh(),
     States.say(narrate("Village - réveil")),
+    ...salvateurReviveFlow(),
     States.wake(null),
     States.wait(2),
     ...announceDeathsFlow(),

@@ -348,11 +348,18 @@ function setChoiceMode(active, label, choices) {
     document.getElementById('choiceLabel').textContent = label || '';
     const container = document.getElementById('choiceButtons');
     container.innerHTML = '';
-    (choices || []).forEach((text, i) => {
+    let choiceIndex = 0;
+    (choices || []).forEach((text) => {
       const btn = document.createElement('button');
       btn.className = 'btn btn-ghost';
-      btn.textContent = text;
-      btn.addEventListener('click', () => onChoiceClick(i));
+      if (text === '{roleBtn}') {
+        btn.textContent = 'Mon rôle';
+        btn.addEventListener('click', () => showRoleModal());
+      } else {
+        const idx = choiceIndex++;
+        btn.textContent = text;
+        btn.addEventListener('click', () => onChoiceClick(idx));
+      }
       container.appendChild(btn);
     });
   }
