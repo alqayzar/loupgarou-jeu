@@ -51,6 +51,16 @@ const ROLES = [
     desc: 'Lorsqu\'il meurt, il tire une dernière flèche et entraîne un joueur de son choix dans la mort.',
   },
   {
+    id: 'salvateur', label: 'Salvateur', emoji: '🛡️', colorClass: 'role-cyan', type: 'villager',
+    locked: false, enabled: false, countable: true, count: 1, max: 1,
+    desc: 'Chaque nuit, protège un joueur de la mort des loups. Ne peut pas protéger la même personne deux nuits de suite. Peut se protéger lui-même.',
+  },
+  {
+    id: 'avocat', label: 'Avocat', emoji: '⚖️', colorClass: 'role-indigo', type: 'villager',
+    locked: false, enabled: false, countable: true, count: 1, max: 1,
+    desc: 'Chaque nuit, immunise un joueur du vote du village. Ne peut pas choisir la même personne deux nuits de suite.',
+  },
+  {
     id: 'maire', label: 'Maire', emoji: '🎖️', colorClass: 'role-yellow', type: 'villager',
     locked: false, enabled: true, countable: false, count: null, max: null, assignable: false,
     desc: 'Élu par le village en début de partie via un vote. Sa voix compte double en cas d\'égalité.',
@@ -66,6 +76,7 @@ const scenarioSettings = {
   announceWitchPotions:    true,
   witchKnowsDeaths:        true,
   foxSniffCount:           3,
+  avocatRevote:            true,
 };
 
 // Nombre de joueurs effectivement jouables (exclut le host s'il est spectateur)

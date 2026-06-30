@@ -33,6 +33,17 @@ const NARRATION_DEFAULTS = {
   "Chasseur - pouvoir":                  "Le Chasseur tombe, mais son arme reste chargée. Désignez celui qui partira avec vous.",
   "Chasseur - tir":                      "est abattu par la dernière flèche du Chasseur.",
 
+  // Salvateur
+  "Salvateur - réveil":                  "Le Salvateur ouvre les yeux. Choisissez un joueur à mettre sous votre protection cette nuit.",
+  "Salvateur - même joueur":             "Vous avez déjà protégé cette personne la nuit dernière. Choisissez quelqu'un d'autre.",
+  "Salvateur - sommeil":                 "Le Salvateur referme les yeux, veillant discrètement sur son protégé.",
+
+  // Avocat
+  "Avocat - réveil":                     "L'Avocat s'éveille. Choisissez un joueur à immuniser du vote du village.",
+  "Avocat - même joueur":                "Vous avez déjà défendu cette personne la nuit dernière. Choisissez quelqu'un d'autre.",
+  "Avocat - sommeil":                    "L'Avocat referme ses dossiers et se rendort.",
+  "Avocat - joueur sauvé":               "L'accusé bénéficie d'une immunité.",
+
   // Cupidon
   "Cupidon - réveil":                    "Cupidon s'éveille. Il va tisser les liens du destin.",
   "Cupidon - premier amoureux":          "Désignez le premier lié.",

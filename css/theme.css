@@ -13,6 +13,7 @@
 
   /* Candy-pop palette */
   --candy-cyan:   #00e5ff;
+  --candy-indigo: #536dfe;
   --candy-cyan-2: #00e5ff57;
   --candy-lime:   #c6ff00;
   --candy-orange: #ff6d00;
@@ -1101,6 +1102,8 @@ input, button, textarea { font-family: inherit; }
 .role-lime   { --role-bg: var(--candy-lime); }
 .role-amber  { --role-bg: var(--candy-amber); }
 .role-green  { --role-bg: var(--candy-green); }
+.role-cyan   { --role-bg: var(--candy-cyan); }
+.role-indigo { --role-bg: var(--candy-indigo); }
 
 /* ==========================================================
    Scrollbar

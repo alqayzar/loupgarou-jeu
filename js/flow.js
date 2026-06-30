@@ -45,11 +45,51 @@ function wolfFlow() {
     States.select('loupgarou', 'Selectionner une victime !', '🐺 Désigner'),
     States.on('confirm_selection_all', (targets) => {
       const victim = getMostVoted(Object.values(targets));
-      return victim
-        ? [States.kill(victim)]
-        : [States.jump("begin_wolf_vote")];
+      if (!victim) return [States.jump("begin_wolf_vote")];
+      const protectedId = States.get('salvateur_protected');
+      return victim === protectedId ? [] : [States.kill(victim)];
     }),
     States.say(narrate("Loups garous - sommeil")),
+    States.sleep(),
+  ];
+}
+
+function avocatFlow() {
+  return [
+    States.say(narrate("Avocat - réveil")),
+    States.label('avocat_pick'),
+    States.select('avocat', 'Choisissez un joueur à immuniser du vote.', '⚖️ Défendre'),
+    States.on('confirm_selection_all', (targets) => {
+      const chosen = Object.values(targets)[0];
+      if (chosen === States.get('avocat_protected')) {
+        return [
+          States.say(narrate('Avocat - même joueur')),
+          States.jump('avocat_pick'),
+        ];
+      }
+      return [States.set('avocat_protected', chosen, States.LOCAL)];
+    }),
+    States.say(narrate("Avocat - sommeil")),
+    States.sleep(),
+  ];
+}
+
+function salvateurFlow() {
+  return [
+    States.say(narrate("Salvateur - réveil")),
+    States.label('salvateur_pick'),
+    States.select('salvateur', 'Choisissez un joueur à protéger.', '🛡️ Protéger'),
+    States.on('confirm_selection_all', (targets) => {
+      const chosen = Object.values(targets)[0];
+      if (chosen === States.get('salvateur_protected')) {
+        return [
+          States.say(narrate('Salvateur - même joueur')),
+          States.jump('salvateur_pick'),
+        ];
+      }
+      return [States.set('salvateur_protected', chosen, States.LOCAL)];
+    }),
+    States.say(narrate("Salvateur - sommeil")),
     States.sleep(),
   ];
 }
@@ -195,6 +235,12 @@ function villageVoteFlow() {
           States.clearTimeout('village_vote'),
           States.reset(),
           States.say(narrate('Vote - vote blanc')),
+        ];
+        if (victim === States.get('avocat_protected')) return [
+          States.clearTimeout('village_vote'),
+          States.reset(),
+          States.say(narrate('Avocat - joueur sauvé')),
+          ...(scenarioSettings.avocatRevote ? [States.jump('begin_village_vote')] : []),
         ];
         const player     = connectedInGame.find(p => p.id === victim);
         const assignment = States.get('roles', []).find(a => a.id === victim);
@@ -475,19 +521,28 @@ function defaultNightFlow() {
     States.wait(3),
     States.label('after_fox'),
 
-    // States.wait(3),
-    // ...wolfFlow(),
-    // States.wait(3),
+    States.jumpif('after_seer', () => !isRolePresent('voyante')),
+    ...seerFlow(),
+    States.wait(3),
+    States.label('after_seer'),
+
+    States.jumpif('after_salvateur', () => !isRolePresent('salvateur')),
+    ...salvateurFlow(),
+    States.wait(3),
+    States.label('after_salvateur'),
+
+    ...wolfFlow(),
+    States.wait(3),
 
     States.jumpif('after_witch', () => !isRolePresent('sorciere')),
     ...witchFlow(),
     States.wait(3),
     States.label('after_witch'),
 
-    States.jumpif('after_seer', () => !isRolePresent('voyante')),
-    ...seerFlow(),
+    States.jumpif('after_avocat', () => !isRolePresent('avocat')),
+    ...avocatFlow(),
     States.wait(3),
-    States.label('after_seer'),
+    States.label('after_avocat'),
 
     States.set('night', false, States.GLOBAL),
     States.refresh(),

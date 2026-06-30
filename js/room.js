@@ -297,6 +297,13 @@ function initSettings() {
     else foxSniffCountInput.value = scenarioSettings.foxSniffCount ?? 3;
   });
 
+  const avocatRevoteCheck = document.getElementById('avocatRevoteCheck');
+  avocatRevoteCheck.checked = scenarioSettings.avocatRevote;
+  avocatRevoteCheck.addEventListener('change', () => {
+    scenarioSettings.avocatRevote = avocatRevoteCheck.checked;
+    saveRoleSettings();
+  });
+
   const voteTimeoutCheck = document.getElementById('voteTimeoutCheck');
   const voteTimeoutField = document.getElementById('voteTimeoutField');
   const voteTimeoutInput = document.getElementById('voteTimeoutInput');
